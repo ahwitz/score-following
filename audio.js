@@ -3,23 +3,35 @@ Author: Andrew Horwitz
 
 Various code sources:
     -http://stackoverflow.com/questions/22073716/create-a-waveform-of-the-full-track-with-web-audio-api
+    -http://www.html5rocks.com/en/tutorials/webaudio/intro/
+    -http://stackoverflow.com/questions/135448/how-do-i-check-if-an-object-has-a-property-in-javascript
 */
 
 //Web Audio settings/vars
+function hasOwnProperty(obj, prop) {
+    var proto = obj.__proto__ || obj.constructor.prototype;
+    return (prop in obj) &&
+        (!(prop in proto) || proto[prop] !== obj[prop]);
+}
+
 window.AudioContext = window.AudioContext || window.webkitAudioContext ;
 
 if (!AudioContext) alert('This site cannot be run in your Browser. Try a recent Chrome or Firefox. ');
 
 var audioContext = new AudioContext();
-var audioSource = audioContext.createBufferSource();
 var gainMod;
-var audioBuffer = null;
+var audioBuffer;
+var audioSource;
 
 //Canvas settings/vars
 var canvasWidth = $(window).width() - 20,  canvasHeight = 120 ;
 var newCanvas   = createCanvas (canvasWidth, canvasHeight);
 var canvasContext;
 var samplesPerPixel;
+
+//Other
+var errorTimeout;
+var ERROR_TIMEOUT_TIMER = 5000;
 
 function initSound(arrayBuffer) {
     audioContext.decodeAudioData(arrayBuffer, function(buffer) {
@@ -75,6 +87,12 @@ function createCanvas ( w, h )
     return newCanvas;
 }
 
+function writeError (text)
+{
+    $("#error").text(text);
+    errorTimeout = setTimeout(function(){ $("#error").text(""); }, ERROR_TIMEOUT_TIMER);
+}
+
 $(window).on('load', function(e)
 {
     var fileInput = document.querySelector('input[type="file"]');
@@ -90,12 +108,40 @@ $(window).on('load', function(e)
 
     $("#play-button").on('click', function()
     {
+        if(audioBuffer == null)
+        {
+            writeError("Nothing has been loaded.");
+            return;
+        }
+        else if(audioSource !== undefined && audioSource.isPlaying === true)
+        {
+            writeError("Source is already playing.");
+            return;
+        }
+
+        audioSource = audioContext.createBufferSource();
+        audioSource.buffer = audioBuffer;
+        audioSource.loop = false;
+        audioSource.isPlaying = true;
+
         gainMod = audioContext.createGain();
         audioSource.connect(gainMod);
         gainMod.gain.value = 0.5;
         gainMod.connect(audioContext.destination);
         audioSource.start(0);
-        console.log('started?');
+    });
+
+    $("#pause-button").on('click', function()
+    {
+        if (audioSource !== undefined && audioSource.isPlaying === true) {
+            audioSource.isPlaying = false;
+            audioSource.stop(0);
+        } 
+        else
+        {
+            writeError("Source is not playing.");
+            return;
+        }
     });
 
     newCanvas.id = "waveform-canvas";
