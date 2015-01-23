@@ -34,6 +34,7 @@ var samplesPerPixel;
 var errorTimeout;
 var ERROR_TIMEOUT_TIMER = 5000;
 var SAMPLE_RATE;
+var PEAK_RESOLUTION = 50;
 
 function initSound(arrayBuffer) {
     wCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -67,20 +68,33 @@ function renderWaveformCanvas()
     var samplesPerPixel = leftChannel.length / canvasWidth;
 
     wCanvasContext.save();
-    wCanvasContext.fillStyle = '#CCCCCC' ;
+    wCanvasContext.fillStyle = '#CCCCCC';
     wCanvasContext.fillRect(0,0,canvasWidth,canvasHeight );
     wCanvasContext.strokeStyle = '#00FF00';
     wCanvasContext.globalCompositeOperation = 'darker';
     wCanvasContext.translate(0,canvasHeight / 2);
-
-    for (var i=0; i < leftChannel.length; i+=50)
+    
+    var i = 0, maxY = 0, minY = 0;
+    while(i < leftChannel.length)
     {
-        var x = Math.floor ( canvasWidth * i / leftChannel.length ) ;
-        var y = leftChannel[i] * canvasHeight / 2 ;
-        wCanvasContext.beginPath();
-        wCanvasContext.moveTo( x  , 0 );
-        wCanvasContext.lineTo( x+1, y );
-        wCanvasContext.stroke();
+        maxY = Math.max(maxY, leftChannel[i]);
+        minY = Math.min(minY, leftChannel[i]);
+
+        if(i % PEAK_RESOLUTION === 0)
+        {
+            var x = Math.floor ( canvasWidth * i / leftChannel.length ) ;
+            maxY = maxY * canvasHeight / 2;
+            minY = minY * canvasHeight / 2;
+            wCanvasContext.beginPath();
+            wCanvasContext.moveTo( x, 0 );
+            wCanvasContext.lineTo( x+1, maxY );
+            wCanvasContext.lineTo( x+1, minY );
+            wCanvasContext.stroke();
+            maxY = 0;
+            minY = 0;
+        }
+
+        i++;
     }
 
     wCanvasContext.restore();
