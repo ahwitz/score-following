@@ -36,6 +36,7 @@ var ERROR_TIMEOUT_TIMER = 5000;
 var SAMPLE_RATE;
 
 function initSound(arrayBuffer) {
+    wCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
     audioContext.decodeAudioData(arrayBuffer, function(buffer) {
         // audioBuffer is global to reuse the decoded audio later.
         audioBuffer = buffer;
@@ -143,10 +144,9 @@ $(window).on('load', function(e)
         pCanvasPos = -1;
         drawPlaybackLine();
 
-        pCanvasAdvanceInterval = setInterval(function(e)
-        {
-            drawPlaybackLine();          
-        }, samplesPerPixel / SAMPLE_RATE);
+        intervalRefreshSpeed = audioBuffer.duration * 1000 / canvasWidth;
+
+        pCanvasAdvanceInterval = setInterval(drawPlaybackLine, intervalRefreshSpeed);
 
         audioSource = audioContext.createBufferSource();
         audioSource.buffer = audioBuffer;
