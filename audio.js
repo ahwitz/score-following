@@ -5,60 +5,45 @@ Various code sources:
     -http://stackoverflow.com/questions/22073716/create-a-waveform-of-the-full-track-with-web-audio-api
 */
 
-// AUDIO CONTEXT
+//Web Audio settings/vars
 window.AudioContext = window.AudioContext || window.webkitAudioContext ;
 
 if (!AudioContext) alert('This site cannot be run in your Browser. Try a recent Chrome or Firefox. ');
 
 var audioContext = new AudioContext();
-var currentBuffer  = null;
+var audioSource = audioContext.createBufferSource();
+var gainMod;
+var audioBuffer = null;
 
-// CANVAS
+//Canvas settings/vars
 var canvasWidth = $(window).width() - 20,  canvasHeight = 120 ;
 var newCanvas   = createCanvas (canvasWidth, canvasHeight);
-var context     = null;
+var canvasContext;
 var samplesPerPixel;
 
-// MUSIC LOADER + DECODE
-function loadMusic(url) {   
-    var req = new XMLHttpRequest();
-    req.open( "GET", url, true );
-    req.responseType = "arraybuffer";    
-    req.onreadystatechange = function (e) 
-    {
-        if (req.readyState == 4) 
-        {
-            if(req.status == 200)
-            {
-                audioContext.decodeAudioData(req.response, function success(buffer) 
-                {
-                    currentBuffer = buffer;
-                    displayBuffer(buffer);
-                }, function error()
-                {
-                    alert('Error while decoding file.'); 
-                });
-            }
-            else
-            {
-                alert('Error during load, possibly wrong URL or CORS issue.');
-            }
-        }
-    } ;
-    req.send();
+function initSound(arrayBuffer) {
+    audioContext.decodeAudioData(arrayBuffer, function(buffer) {
+        // audioBuffer is global to reuse the decoded audio later.
+        audioBuffer = buffer;
+        renderCanvas();
+    }, function(e) {
+        console.log('Error decoding file', e);
+    }); 
 }
 
 // MUSIC DISPLAY
-function displayBuffer(buff /* is an AudioBuffer */) {
-    var leftChannel = buff.getChannelData(0); // Float32Array describing left channel 
-    var rightChannel = buff.getChannelData(1); // Float32Array describing right channel 
+function renderCanvas() 
+{
+    console.log('called');
+    var leftChannel = audioBuffer.getChannelData(0); // Float32Array describing left channel 
+    var rightChannel = audioBuffer.getChannelData(1); // Float32Array describing right channel 
     var samplesPerPixel = leftChannel.length / canvasWidth;    
-    context.save();
-    context.fillStyle = '#CCCCCC' ;
-    context.fillRect(0,0,canvasWidth,canvasHeight );
-    context.strokeStyle = '#00FF00';
-    context.globalCompositeOperation = 'darker';
-    context.translate(0,canvasHeight / 2);
+    canvasContext.save();
+    canvasContext.fillStyle = '#CCCCCC' ;
+    canvasContext.fillRect(0,0,canvasWidth,canvasHeight );
+    canvasContext.strokeStyle = '#00FF00';
+    canvasContext.globalCompositeOperation = 'darker';
+    canvasContext.translate(0,canvasHeight / 2);
 
     for (var x=0; x < canvasWidth; x++) {
         var yMax = 0, yMin = 0;
@@ -71,27 +56,50 @@ function displayBuffer(buff /* is an AudioBuffer */) {
         yMax = yMax * canvasHeight / 2 ;
         yMin = -(yMin * canvasHeight / 2 );
 
-        context.beginPath();
-        context.moveTo( x, yMin );
-        context.lineTo( x, yMax );
-        context.stroke();
+        canvasContext.beginPath();
+        canvasContext.moveTo( x, yMin );
+        canvasContext.lineTo( x, yMax );
+        canvasContext.stroke();
     }
-    context.restore();
+    canvasContext.restore();
     console.log('done');
     $("#click").remove();
     $("#playback").css('display', 'block');
 }
 
-function createCanvas ( w, h ) {
+function createCanvas ( w, h ) 
+{
     var newCanvas = document.createElement('canvas');
-    newCanvas.width  = w;     newCanvas.height = h;
+    newCanvas.width  = w;
+    newCanvas.height = h;
     return newCanvas;
-};
+}
 
 $(window).on('load', function(e)
 {
+    var fileInput = document.querySelector('input[type="file"]');
+
+    fileInput.addEventListener('change', function(e) {  //
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            initSound(this.result);
+        };
+        reader.readAsArrayBuffer(this.files[0]);
+    }, false);
+
+
+    $("#play-button").on('click', function()
+    {
+        gainMod = audioContext.createGain();
+        audioSource.connect(gainMod);
+        gainMod.gain.value = 0.5;
+        gainMod.connect(audioContext.destination);
+        audioSource.start(0);
+        console.log('started?');
+    });
+
     newCanvas.id = "waveform-canvas";
     document.body.appendChild(newCanvas);
-    context = newCanvas.getContext('2d'); 
-    loadMusic('stocksmall.ogg');
+    canvasContext = newCanvas.getContext('2d'); 
 });
+
