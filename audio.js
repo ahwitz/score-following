@@ -1,3 +1,10 @@
+/*
+Author: Andrew Horwitz
+
+Various code sources:
+    -http://stackoverflow.com/questions/22073716/create-a-waveform-of-the-full-track-with-web-audio-api
+*/
+
 // AUDIO CONTEXT
 window.AudioContext = window.AudioContext || window.webkitAudioContext ;
 
@@ -12,36 +19,34 @@ var newCanvas   = createCanvas (canvasWidth, canvasHeight);
 var context     = null;
 var samplesPerPixel;
 
-window.onload = appendCanvas;
-function appendCanvas() 
-{ 
-    newCanvas.id = "waveform-canvas";
-    document.body.appendChild(newCanvas);
-    context = newCanvas.getContext('2d'); 
-}
-
 // MUSIC LOADER + DECODE
 function loadMusic(url) {   
     var req = new XMLHttpRequest();
     req.open( "GET", url, true );
     req.responseType = "arraybuffer";    
-    req.onreadystatechange = function (e) {
-          if (req.readyState == 4) {
-             if(req.status == 200)
-                  audioContext.decodeAudioData(req.response, 
-                    function(buffer) {
-                        console.log("loaded");
-                        currentBuffer = buffer;
-                        displayBuffer(buffer);
-                    }, onDecodeError);
-             else
-                  alert('error during the load.Wrong url or cross origin issue');
-          }
+    req.onreadystatechange = function (e) 
+    {
+        if (req.readyState == 4) 
+        {
+            if(req.status == 200)
+            {
+                audioContext.decodeAudioData(req.response, function success(buffer) 
+                {
+                    currentBuffer = buffer;
+                    displayBuffer(buffer);
+                }, function error()
+                {
+                    alert('Error while decoding file.'); 
+                });
+            }
+            else
+            {
+                alert('Error during load, possibly wrong URL or CORS issue.');
+            }
+        }
     } ;
     req.send();
 }
-
-function onDecodeError() {  alert('error while decoding your file.');  }
 
 // MUSIC DISPLAY
 function displayBuffer(buff /* is an AudioBuffer */) {
@@ -74,6 +79,7 @@ function displayBuffer(buff /* is an AudioBuffer */) {
     context.restore();
     console.log('done');
     $("#click").remove();
+    $("#playback").css('display', 'block');
 }
 
 function createCanvas ( w, h ) {
@@ -84,8 +90,8 @@ function createCanvas ( w, h ) {
 
 $(window).on('load', function(e)
 {
-    //document.body.appendChild(newCanvas);
-    //context = newCanvas.getContext('2d');
-    console.log("loading");
+    newCanvas.id = "waveform-canvas";
+    document.body.appendChild(newCanvas);
+    context = newCanvas.getContext('2d'); 
     loadMusic('stocksmall.ogg');
 });
