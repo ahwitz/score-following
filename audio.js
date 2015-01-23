@@ -56,8 +56,7 @@ function renderPlaybackCanvas()
     pCanvasContext = pCanvas.getContext('2d');
     pCanvasContext.fillStyle = 'rgba(0, 0, 0, 0)';
     pCanvasContext.fillRect(0,0,canvasWidth,canvasHeight);
-    pCanvasContext.strokeStyle = '#FF0000';
-    pCanvasContext.globalCompositeOperation = 'lighter';
+    pCanvasContext.strokeStyle = 'rgba(255, 0, 0, 0.5)';
 }
 
 //display waveform
@@ -107,7 +106,7 @@ function writeError (text)
 
 function drawPlaybackLine()
 {
-    pCanvasContext.clearRect(pCanvasPos, 0, pCanvasPos, canvasHeight);
+    pCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
     pCanvasPos++;
     pCanvasContext.beginPath();
     pCanvasContext.moveTo( pCanvasPos  , 0 );
@@ -130,7 +129,7 @@ $(window).on('load', function(e)
 
     $("#play-button").on('click', function()
     {
-        if(audioBuffer == null)
+        if(audioBuffer === null)
         {
             writeError("Nothing has been loaded.");
             return;
@@ -142,12 +141,11 @@ $(window).on('load', function(e)
         }
 
         pCanvasPos = -1;
-        drawPlaybackLine()
+        drawPlaybackLine();
 
         pCanvasAdvanceInterval = setInterval(function(e)
         {
-
-            drawPlaybackLine()          
+            drawPlaybackLine();          
         }, samplesPerPixel / SAMPLE_RATE);
 
         audioSource = audioContext.createBufferSource();
@@ -174,9 +172,7 @@ $(window).on('load', function(e)
         audioSource.stop(0);
         
         clearInterval(pCanvasAdvanceInterval);
-        $("#playback-canvas").remove();
-        pCanvas = null;
-        pCanvasContext = null;
+        pCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
         pCanvasAdvanceInterval = null;
     });
 
