@@ -40,24 +40,28 @@ function initSound(arrayBuffer) {
         // audioBuffer is global to reuse the decoded audio later.
         audioBuffer = buffer;
         SAMPLE_RATE = buffer.sampleRate;
-        renderCanvas();
-
-        pCanvas = createCanvas(canvasWidth, canvasHeight, "playback-canvas");
-        pCanvas.style.position = "fixed";
-        pCanvas.style.zIndex = wCanvas.style.zIndex + 1;
-        $("#playback-canvas").offset($("#waveform-canvas").offset());
-        pCanvasContext = pCanvas.getContext('2d');
-        pCanvasContext.fillStyle = 'rgba(0, 0, 0, 1)';
-        pCanvasContext.fillRect(0,0,canvasWidth,canvasHeight);
-        pCanvasContext.strokeStyle = '#FF0000';
-        pCanvasContext.globalCompositeOperation = 'lighter';
+        renderWaveformCanvas();
+        renderPlaybackCanvas();
     }, function(e) {
         console.log('Error decoding file', e);
     }); 
 }
 
+function renderPlaybackCanvas()
+{
+    pCanvas = createCanvas(canvasWidth, canvasHeight, "playback-canvas");
+    pCanvas.style.position = "fixed";
+    pCanvas.style.zIndex = wCanvas.style.zIndex + 1;
+    $("#playback-canvas").offset($("#waveform-canvas").offset());
+    pCanvasContext = pCanvas.getContext('2d');
+    pCanvasContext.fillStyle = 'rgba(0, 0, 0, 0)';
+    pCanvasContext.fillRect(0,0,canvasWidth,canvasHeight);
+    pCanvasContext.strokeStyle = '#FF0000';
+    pCanvasContext.globalCompositeOperation = 'lighter';
+}
+
 //display waveform
-function renderCanvas() 
+function renderWaveformCanvas() 
 {
     var leftChannel = audioBuffer.getChannelData(0); // Float32Array describing left channel 
     var samplesPerPixel = leftChannel.length / canvasWidth;
@@ -87,7 +91,6 @@ function createCanvas ( w, h, id )
 {
     $("body").append("<canvas id='" + id + "'></canvas>");
     var tempCanvas = document.getElementById(id);
-    console.log("making a new canvas", tempCanvas);
     tempCanvas.width  = w;
     tempCanvas.height = h;
     return tempCanvas;
@@ -100,6 +103,16 @@ function writeError (text)
     { 
         $("#error").text(""); 
     }, ERROR_TIMEOUT_TIMER);
+}
+
+function drawPlaybackLine()
+{
+    pCanvasContext.clearRect(pCanvasPos, 0, pCanvasPos, canvasHeight);
+    pCanvasPos++;
+    pCanvasContext.beginPath();
+    pCanvasContext.moveTo( pCanvasPos  , 0 );
+    pCanvasContext.lineTo( pCanvasPos, canvasHeight );
+    pCanvasContext.stroke(); 
 }
 
 $(window).on('load', function(e)
@@ -128,20 +141,13 @@ $(window).on('load', function(e)
             return;
         }
 
-        pCanvasContext.beginPath();
-        pCanvasPos = 0;
-        pCanvasContext.moveTo( pCanvasPos  , 0 );
-        pCanvasContext.lineTo( pCanvasPos, canvasHeight );
-        pCanvasContext.stroke();
+        pCanvasPos = -1;
+        drawPlaybackLine()
 
         pCanvasAdvanceInterval = setInterval(function(e)
         {
-            pCanvasContext.clearRect(pCanvasPos, 0, pCanvasPos, canvasHeight);
-            pCanvasPos++;
-            pCanvasContext.beginPath();
-            pCanvasContext.moveTo( pCanvasPos  , 0 );
-            pCanvasContext.lineTo( pCanvasPos, canvasHeight );
-            pCanvasContext.stroke();            
+
+            drawPlaybackLine()          
         }, samplesPerPixel / SAMPLE_RATE);
 
         audioSource = audioContext.createBufferSource();
