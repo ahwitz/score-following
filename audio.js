@@ -103,7 +103,7 @@ function renderWaveformCanvas()
 
 function createCanvas ( w, h, id ) 
 {
-    $("body").append("<canvas id='" + id + "'></canvas>");
+    $("#waveform").append("<canvas id='" + id + "'></canvas>");
     var tempCanvas = document.getElementById(id);
     tempCanvas.width  = w;
     tempCanvas.height = h;
@@ -131,6 +131,10 @@ function drawPlaybackLine()
 
 $(window).on('load', function(e)
 {
+    $("#waveform").append('<button id="play-button">Play</button>' +
+            '<button id="pause-button">Pause</button><br>' +
+            '<input id="file-input" type="file" accept="audio/*"><br>' +
+            '<div id="error"></div><br>');
     var fileInput = document.querySelector('input[type="file"]');
 
     fileInput.addEventListener('change', function(e) {  //

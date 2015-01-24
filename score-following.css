@@ -1,0 +1,21 @@
+body, html{
+    height: 100%;
+    padding: 0px;
+    margin: 0px;
+}
+
+#waveform{
+    padding: 5px;
+    width: calc(100% - 10px);
+    height: 190px;
+}
+#mei{
+    width: 50%;
+    height: calc(100% - 200px);
+    float: left;
+}
+#diva{
+    width: 50%;
+    height: calc(100% - 200px);
+    float: right;
+}
