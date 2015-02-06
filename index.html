@@ -3,14 +3,31 @@
     <head>
         <title>Score Following</title>
         <link rel="stylesheet" href="score-following.css" />
+        <link rel="stylesheet" href="diva.min.css" />
         <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
         <script src="audio.js"></script>
+        <script src="diva.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                $('#diva').diva({
+                    enableAutoHeight: true,
+                    fixedHeightGrid: false,
+                    iipServerURL: "http://localhost/fcgi-bin/iipsrv.fcgi",
+                    objectData: "/holst1Tiff.json",
+                    imageDir: "/srv/images/holst1Tiff/",
+                    enableCanvas: true,
+                    enableDownload: true,
+                    enableAutoTitle: false
+                });
+                $('#waveform').wap({});
+            });
+        </script>
     </head> 
 
     <body>
+        <div id="diva"></div>
         <div id="waveform"></div>
         <div id="mei"></div>
-        <div id="diva"></div>
     </body>
     <script>
     </script>

@@ -7,194 +7,300 @@ Various code sources:
     -http://stackoverflow.com/questions/135448/how-do-i-check-if-an-object-has-a-property-in-javascript
 */
 
-//Web Audio settings/vars
 function hasOwnProperty(obj, prop) {
     var proto = obj.__proto__ || obj.constructor.prototype;
     return (prop in obj) &&
         (!(prop in proto) || proto[prop] !== obj[prop]);
 }
 
-window.AudioContext = window.AudioContext || window.webkitAudioContext ;
-
-if (!AudioContext) alert('This site cannot be run in your Browser. Try a recent Chrome or Firefox. ');
-
-var audioContext = new AudioContext();
-var gainMod;
-var audioBuffer;
-var audioSource;
-
-//Canvas settings/vars
-var canvasWidth = $(window).width() - 20,  canvasHeight = 120 ;
-var wCanvas, wCanvasContext; //waveform canvas
-var pCanvas, pCanvasContext; //playback overlay canvas
-var pCanvasAdvanceInterval, pCanvasPos; //variables for animation
-var samplesPerPixel;
-
-//Other
-var errorTimeout;
-var ERROR_TIMEOUT_TIMER = 5000;
-var SAMPLE_RATE;
-var PEAK_RESOLUTION = 50;
-
-function initSound(arrayBuffer) {
-    wCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
-    audioContext.decodeAudioData(arrayBuffer, function(buffer) {
-        // audioBuffer is global to reuse the decoded audio later.
-        audioBuffer = buffer;
-        SAMPLE_RATE = buffer.sampleRate;
-        renderWaveformCanvas();
-        renderPlaybackCanvas();
-    }, function(e) {
-        console.log('Error decoding file', e);
-    }); 
-}
-
-function renderPlaybackCanvas()
+// this pattern was taken from http://www.virgentech.com/blog/2009/10/building-object-oriented-jquery-plugin.html
+(function ($)
 {
-    pCanvas = createCanvas(canvasWidth, canvasHeight, "playback-canvas");
-    pCanvas.style.position = "fixed";
-    pCanvas.style.zIndex = wCanvas.style.zIndex + 1;
-    $("#playback-canvas").offset($("#waveform-canvas").offset());
-    pCanvasContext = pCanvas.getContext('2d');
-    pCanvasContext.fillStyle = 'rgba(0, 0, 0, 0)';
-    pCanvasContext.fillRect(0,0,canvasWidth,canvasHeight);
-    pCanvasContext.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-}
-
-//display waveform
-function renderWaveformCanvas() 
-{
-    var leftChannel = audioBuffer.getChannelData(0); // Float32Array describing left channel 
-    var samplesPerPixel = leftChannel.length / canvasWidth;
-
-    wCanvasContext.save();
-    wCanvasContext.fillStyle = '#CCCCCC';
-    wCanvasContext.fillRect(0,0,canvasWidth,canvasHeight );
-    wCanvasContext.strokeStyle = '#00FF00';
-    wCanvasContext.globalCompositeOperation = 'darker';
-    wCanvasContext.translate(0,canvasHeight / 2);
-    
-    var i = 0, maxY = 0, minY = 0;
-    while(i < leftChannel.length)
+    var WebAudioPlayer = function (element, options)
     {
-        maxY = Math.max(maxY, leftChannel[i]);
-        minY = Math.min(minY, leftChannel[i]);
+        window.AudioContext = window.AudioContext || window.webkitAudioContext ;
 
-        if(i % PEAK_RESOLUTION === 0)
+        if (!AudioContext) alert('This site cannot be run in your Browser. Try a recent Chrome or Firefox. ');
+
+        //Web Audio API variables
+        var audioContext = new AudioContext();
+        var gainMod;
+        var audioBuffer;
+        var audioSource;
+
+        //Keeps track of playback position 
+        var audioSourceStartPoint = 0; //point in the music where the source will start playing from
+        var audioSourceStartTime; //time at which the audio started playing
+        var pCanvasAdvanceInterval, intervalRefreshSpeed, playbackBarPosition; //variables for animation
+
+        //Canvas settings/vars
+        var canvasWidth, canvasHeight = 120;
+        var wCanvas, wCanvasContext; //waveform canvas
+        var pCanvas, pCanvasContext; //playback overlay canvas
+
+        //Other
+        var errorTimeout;
+        var ERROR_TIMEOUT_TIMER = 5000;
+        var SAMPLE_RATE;
+        var PEAK_RESOLUTION = 50;
+
+        /* RESOURCE FUNCTIONS */
+        //creates a canvas - before is a jQuery/CSS selector
+        function createCanvas ( before, w, h, id ) 
         {
-            var x = Math.floor ( canvasWidth * i / leftChannel.length ) ;
-            maxY = maxY * canvasHeight / 2;
-            minY = minY * canvasHeight / 2;
-            wCanvasContext.beginPath();
-            wCanvasContext.moveTo( x, 0 );
-            wCanvasContext.lineTo( x+1, maxY );
-            wCanvasContext.lineTo( x+1, minY );
-            wCanvasContext.stroke();
-            maxY = 0;
-            minY = 0;
+            $(before).before("<canvas id='" + id + "'></canvas>");
+            var tempCanvas = document.getElementById(id);
+            tempCanvas.width  = w;
+            tempCanvas.height = h;
+            return tempCanvas;
         }
 
-        i++;
-    }
+        //writes an error in the error div
+        function writeError (text)
+        {
+            $("#error").text(text);
+            errorTimeout = setTimeout(function()
+            { 
+                $("#error").text(""); 
+            }, ERROR_TIMEOUT_TIMER);
+        }
 
-    wCanvasContext.restore();
-    console.log('done');
-}
+        function realTimeToPlaybackTime (time) 
+        {
+            if(!audioSourceStartTime) return 0;
 
-function createCanvas ( w, h, id ) 
-{
-    $("#waveform").append("<canvas id='" + id + "'></canvas>");
-    var tempCanvas = document.getElementById(id);
-    tempCanvas.width  = w;
-    tempCanvas.height = h;
-    return tempCanvas;
-}
+            var timeDifference = time / 1000 - audioSourceStartTime;
+            return timeDifference + audioSourceStartPoint;
+        }
 
-function writeError (text)
-{
-    $("#error").text(text);
-    errorTimeout = setTimeout(function()
-    { 
-        $("#error").text(""); 
-    }, ERROR_TIMEOUT_TIMER);
-}
+        function currentTimeToPlaybackTime ()
+        {
+            if(!audioSource.isPlaying) return audioSourceStartPoint;
 
-function drawPlaybackLine()
-{
-    pCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
-    pCanvasPos++;
-    pCanvasContext.beginPath();
-    pCanvasContext.moveTo( pCanvasPos  , 0 );
-    pCanvasContext.lineTo( pCanvasPos, canvasHeight );
-    pCanvasContext.stroke(); 
-}
-
-$(window).on('load', function(e)
-{
-    $("#waveform").append('<button id="play-button">Play</button>' +
-            '<button id="pause-button">Pause</button><br>' +
-            '<input id="file-input" type="file" accept="audio/*"><br>' +
-            '<div id="error"></div><br>');
-    var fileInput = document.querySelector('input[type="file"]');
-
-    fileInput.addEventListener('change', function(e) {  //
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            initSound(this.result);
-        };
-        reader.readAsArrayBuffer(this.files[0]);
-    }, false);
+            return realTimeToPlaybackTime(Date.now());
+        }
 
 
-    $("#play-button").on('click', function()
+        /* PLAYBACK FUNCTIONS */
+        //(re)starts playback at audioSourceStartPoint
+        function startAudioPlayback()
+        {
+            if(audioSource && audioSource.isPlaying) {
+                pauseAudioPlayback();
+            }
+
+            audioSource = audioContext.createBufferSource();
+            audioSource.buffer = audioBuffer;
+            audioSource.loop = false;
+            audioSource.isPlaying = true;
+
+            gainMod = audioContext.createGain();
+            audioSource.connect(gainMod);
+            gainMod.gain.value = 0.5;
+            gainMod.connect(audioContext.destination);
+            audioSource.start(0, audioSourceStartPoint);
+            audioSourceStartTime = Date.now() / 1000;
+
+            playbackBarPosition = (audioSourceStartPoint / audioBuffer.duration) * canvasWidth;
+            drawPlaybackLine();
+
+            pCanvasAdvanceInterval = setInterval(drawPlaybackLine, intervalRefreshSpeed);
+        }
+
+        //Pauses playback
+        function pauseAudioPlayback()
+        {
+            audioSource.isPlaying = false;
+            audioSource.stop(0);
+
+            clearInterval(pCanvasAdvanceInterval);
+            pCanvasAdvanceInterval = null;
+        }
+
+        //Creates playback canvas (the moving red bar)
+        function renderPlaybackCanvas()
+        {
+            pCanvas = createCanvas("#error", canvasWidth, canvasHeight, "playback-canvas");
+            pCanvas.style.position = "absolute";
+            pCanvas.style.zIndex = wCanvas.style.zIndex + 1;
+            $("#playback-canvas").offset($("#waveform-canvas").offset());
+            pCanvasContext = pCanvas.getContext('2d');
+            pCanvasContext.fillStyle = 'rgba(0, 0, 0, 0)';
+            pCanvasContext.fillRect(0,0,canvasWidth,canvasHeight);
+            pCanvasContext.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+
+            intervalRefreshSpeed = audioBuffer.duration * 1000 / canvasWidth;
+        }
+
+        //Displays waveform canvas (the background waveform)
+        function renderWaveformCanvas() 
+        {
+            var leftChannel = audioBuffer.getChannelData(0); // Float32Array describing left channel 
+
+            wCanvasContext.save();
+            wCanvasContext.fillStyle = '#CCCCCC';
+            wCanvasContext.fillRect(0,0,canvasWidth,canvasHeight );
+            wCanvasContext.strokeStyle = '#00FF00';
+            wCanvasContext.globalCompositeOperation = 'darker';
+            wCanvasContext.translate(0,canvasHeight / 2);
+            
+            var i = 0, maxY = 0, minY = 0;
+            while(i < leftChannel.length)
+            {
+                maxY = Math.max(maxY, leftChannel[i]);
+                minY = Math.min(minY, leftChannel[i]);
+
+                if(i % PEAK_RESOLUTION === 0)
+                {
+                    var x = Math.floor ( canvasWidth * i / leftChannel.length ) ;
+                    maxY = maxY * canvasHeight / 2;
+                    minY = minY * canvasHeight / 2;
+                    wCanvasContext.beginPath();
+                    wCanvasContext.moveTo( x, 0 );
+                    wCanvasContext.lineTo( x+1, maxY );
+                    wCanvasContext.lineTo( x+1, minY );
+                    wCanvasContext.stroke();
+                    maxY = 0;
+                    minY = 0;
+                }
+
+                i++;
+            }
+
+            wCanvasContext.restore();
+        }
+
+        //Called on an interval to update the playback position marker
+        function drawPlaybackLine()
+        {
+            pCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
+            playbackBarPosition++;
+            pCanvasContext.beginPath();
+            pCanvasContext.moveTo( playbackBarPosition  , 0 );
+            pCanvasContext.lineTo( playbackBarPosition, canvasHeight );
+            pCanvasContext.stroke(); 
+        }
+
+        /* INIT FUNCTIONS */
+
+        //Initializes a sound once file is loaded
+        function initSound(arrayBuffer) {
+            wCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
+            audioContext.decodeAudioData(arrayBuffer, function(buffer) {
+                // audioBuffer is global to reuse the decoded audio later.
+                audioBuffer = buffer;
+                SAMPLE_RATE = buffer.sampleRate;
+                renderWaveformCanvas();
+                renderPlaybackCanvas();
+                $('#play-button').prop('disabled', false);
+                $('#pause-button').prop('disabled', false);
+                initListeners();
+            }, function(e) {
+                console.log('Error decoding file', e);
+            }); 
+        }
+
+        //Initializes keyboard listeners
+        function initListeners() {
+
+            $("#play-button").on('click', function()
+            {
+                if(audioBuffer === null)
+                {
+                    writeError("Nothing has been loaded.");
+                    return;
+                }
+                else if(audioSource !== undefined && audioSource.isPlaying === true)
+                {
+                    writeError("Source is already playing.");
+                    return;
+                }
+
+                startAudioPlayback();
+            });
+
+            $("#pause-button").on('click', function()
+            {
+                if (audioSource === undefined || audioSource.isPlaying === false) 
+                {
+                    writeError("Source is not playing.");
+                    return;
+                }
+
+                audioSourceStartPoint = currentTimeToPlaybackTime();
+                pauseAudioPlayback();
+            });
+
+            $(pCanvas).on('click', function(e){
+                var totalLength = canvasWidth;
+                var lengthIn = e.pageX - $(this).offset().left;
+
+                console.log(canvasWidth, e.pageX, $(this), $(this).offset().left, (lengthIn / totalLength), audioBuffer.duration);
+                audioSourceStartPoint = (lengthIn / totalLength) * audioBuffer.duration;
+
+                console.log(audioSourceStartPoint);
+                startAudioPlayback();
+            });
+
+            //have to prevent space scroll on keydown rather than keyup
+            $(window).on('keydown', function(e)
+            {
+                //space bar
+                if (e.keyCode == 32) {
+                    e.preventDefault();
+                }
+            });
+
+            $(window).on('keyup', function(e)
+            {
+                //space bar
+                if (e.keyCode == 32)
+                {
+                    $("#mei").append("Got one at " + currentTimeToPlaybackTime() + ".<br>");
+                }
+            });
+        }
+
+        //Actual init function for the entire object
+        function init()
+        {
+            $("#waveform").append('<button id="play-button" disabled>Play</button>' +
+                '<button id="pause-button" disabled>Pause</button><br>' +
+                '<input id="file-input" type="file" accept="audio/*"><br>' +
+                '<div id="error"></div><br>');
+            canvasWidth = $("#waveform").width() - 20;
+            var fileInput = document.querySelector('input[type="file"]');
+
+            fileInput.addEventListener('change', function(e) {  //
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    initSound(this.result);
+                };
+                reader.readAsArrayBuffer(this.files[0]);
+            }, false);
+
+            wCanvas = createCanvas("#error", canvasWidth, canvasHeight, "waveform-canvas"); //waveform canvas
+            wCanvasContext = wCanvas.getContext('2d'); 
+        }
+
+        init();
+    };
+
+    $.fn.wap = function (options)
     {
-        if(audioBuffer === null)
+        return this.each(function ()
         {
-            writeError("Nothing has been loaded.");
-            return;
-        }
-        else if(audioSource !== undefined && audioSource.isPlaying === true)
-        {
-            writeError("Source is already playing.");
-            return;
-        }
+            // Save the reference to the container element
+            options.parentObject = $(this);
 
-        pCanvasPos = -1;
-        drawPlaybackLine();
+            // Return early if this element already has a plugin instance
+            if (options.parentObject.data('wap'))
+                return;
 
-        intervalRefreshSpeed = audioBuffer.duration * 1000 / canvasWidth;
+            // Otherwise, instantiate the document viewer
+            var webAudioPlayer = new WebAudioPlayer(this, options);
+            options.parentObject.data('wap', webAudioPlayer);
+        });
+    };
 
-        pCanvasAdvanceInterval = setInterval(drawPlaybackLine, intervalRefreshSpeed);
-
-        audioSource = audioContext.createBufferSource();
-        audioSource.buffer = audioBuffer;
-        audioSource.loop = false;
-        audioSource.isPlaying = true;
-
-        gainMod = audioContext.createGain();
-        audioSource.connect(gainMod);
-        gainMod.gain.value = 0.5;
-        gainMod.connect(audioContext.destination);
-        audioSource.start(0);
-    });
-
-    $("#pause-button").on('click', function()
-    {
-        if (audioSource === undefined || audioSource.isPlaying === false) 
-        {
-            writeError("Source is not playing.");
-            return;
-        }
-        
-        audioSource.isPlaying = false;
-        audioSource.stop(0);
-        
-        clearInterval(pCanvasAdvanceInterval);
-        pCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
-        pCanvasAdvanceInterval = null;
-    });
-
-    wCanvas = createCanvas(canvasWidth, canvasHeight, "waveform-canvas"); //waveform canvas
-    wCanvasContext = wCanvas.getContext('2d'); 
-});
-
+})(jQuery);
