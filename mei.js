@@ -11,17 +11,78 @@ function genUUID()
 	lut[d3&0xff]+lut[d3>>8&0xff]+lut[d3>>16&0xff]+lut[d3>>24&0xff];
 }
 
+var initTop, initLeft;
+
 function overlayMouseDownListener(e)
 {
 	meiEditor.localLog("mousedown registered.");
 	$("#diva-overlay").on('mouseup', overlayMouseUpListener);
-};
+	$("#diva-overlay").on('mousemove', overlayMouseMoveListener);
+	$("#diva-overlay").append('<div id="drag-div"></div>');
+	$("#drag-div").css('z-index', $("#diva-overlay").css('z-index') + 1);
+	initTop = e.pageY;
+	initLeft = e.pageX;
+	$("#drag-div").offset({'top': initTop, 'left':initLeft});
+	overlayBoxULX = e.pageX;
+	overlayBoxLRX = e.pageX;
+	overlayBoxULY = e.pageY;
+	overlayBoxLRY = e.pageX;
+}
+
+function overlayMouseMoveListener(e)
+{
+	var dragLeft = $("#drag-div").offset().left;
+	var dragTop = $("#drag-div").offset().top;
+	var dragRight = dragLeft + $("#drag-div").width();
+	var dragBottom = dragTop + $("#drag-div").height(); 
+
+	//if we're moving left
+	if (e.pageX < initLeft)
+	{
+		$("#drag-div").offset({'left': e.pageX});
+		$("#drag-div").width(dragRight - e.pageX);
+	}
+	//moving right
+	else
+	{
+		$("#drag-div").width(e.pageX - dragLeft);
+	}
+	//moving up
+	if (e.pageY < initTop)
+	{
+		$("#drag-div").offset({'top': e.pageY});
+		$("#drag-div").height(dragBottom - e.pageY);
+	}
+	//moving down
+	else
+	{
+		$("#drag-div").height(e.pageY - dragTop);
+	}
+}
 
 function overlayMouseUpListener(e)
-{
+{ 
+	var divaInnerObj = $("#1-diva-page-" + divaData.getCurrentPageIndex());
+
+	//left position
+	var draggedBoxLeft = $("#drag-div").offset().left - divaInnerObj.offset().left;
+	//translated right position (converted to max zoom level)
+	var draggedBoxRight = divaData.translateToMaxZoomLevel(draggedBoxLeft + $("#drag-div").outerWidth());
+	//translated left - we needed the original left to get the right translation, so we translate it now
+	draggedBoxLeft = divaData.translateToMaxZoomLevel(draggedBoxLeft);
+	//same vertical
+	var draggedBoxTop = $("#drag-div").offset().top - divaInnerObj.offset().top;
+	var draggedBoxBottom = divaData.translateToMaxZoomLevel(draggedBoxTop + $("#drag-div").outerHeight());
+	draggedBoxTop = divaData.translateToMaxZoomLevel(draggedBoxTop);
+
+	var highlightInfo = {'width': draggedBoxRight - draggedBoxLeft, 'height': draggedBoxBottom - draggedBoxTop, 'ulx':draggedBoxLeft, 'uly': draggedBoxTop, 'divID': genUUID()};
+
+	divaData.highlightOnPage(divaData.getCurrentPageIndex(), [highlightInfo]);
+
 	meiEditor.localLog("Moseup registered ");
 	waveformAudioPlayer.startAudioPlayback();
 	$("#diva-overlay").unbind("mousedown", overlayMouseDownListener);
+	$("#diva-overlay").unbind("mousemove", overlayMouseMoveListener);
 	$("#diva-overlay").unbind("mouseup", overlayMouseUpListener);
 	$("#diva-overlay").remove();
 }
@@ -33,7 +94,6 @@ function startMeiAppend(time)
 	$('body').append('<div id="diva-overlay"></div>');
 	$("#diva-overlay").css({
 		'position': 'absolute',
-		'background-color': 'rgba(255, 0, 0, 0.5)',
 		'z-index': 101
 	});
 	$("#diva-overlay").offset($("#diva").offset());

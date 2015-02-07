@@ -20,6 +20,7 @@
         <script>
             var meiEditor;
             var waveformAudioPlayer;
+            var divaData;
             $(document).ready(function() {
                 $('#diva').diva({
                     enableAutoHeight: true,
@@ -29,8 +30,12 @@
                     imageDir: "/srv/images/holst1Tiff/",
                     enableCanvas: true,
                     enableDownload: true,
+                    enableHighlight: true,
                     enableAutoTitle: false
                 });
+
+                divaData = $("#diva").data('diva');
+
                 $('#waveform').wap({}); 
                 waveformAudioPlayer = $("#waveform").data('wap');
 

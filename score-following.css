@@ -22,3 +22,13 @@ body, html{
     width: 50%;
     float: right;
 }
+#drag-div{
+    border: thin black solid;
+    position: absolute;
+    cursor: default;
+    background-color:rgba(255, 0, 0, 0.1);
+}
+#diva-overlay{
+    position: absolute;
+    z-index: 101;
+}
