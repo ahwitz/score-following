@@ -70,7 +70,7 @@ function hasOwnProperty(obj, prop) {
             if(!audioSourceStartTime) return 0;
 
             var timeDifference = time / 1000 - audioSourceStartTime;
-            return timeDifference + audioSourceStartPoint;
+            return parseFloat((timeDifference + audioSourceStartPoint).toFixed(3));
         }
 
         function currentTimeToPlaybackTime ()
@@ -86,7 +86,7 @@ function hasOwnProperty(obj, prop) {
         function startAudioPlayback()
         {
             if(audioSource && audioSource.isPlaying) {
-                pauseAudioPlayback();
+                pauseAudioPlayback(false);
             }
 
             audioSource = audioContext.createBufferSource();
@@ -107,9 +107,11 @@ function hasOwnProperty(obj, prop) {
             pCanvasAdvanceInterval = setInterval(drawPlaybackLine, intervalRefreshSpeed);
         }
 
-        //Pauses playback
-        function pauseAudioPlayback()
+        //Pauses playback; will save current playback point if saveCurrent is true
+        function pauseAudioPlayback(saveCurrentPoint)
         {
+            if(saveCurrentPoint) audioSourceStartPoint = currentTimeToPlaybackTime();
+
             audioSource.isPlaying = false;
             audioSource.stop(0);
 
@@ -212,7 +214,6 @@ function hasOwnProperty(obj, prop) {
                 }
                 else if(audioSource !== undefined && audioSource.isPlaying === true)
                 {
-                    writeError("Source is already playing.");
                     return;
                 }
 
@@ -227,18 +228,15 @@ function hasOwnProperty(obj, prop) {
                     return;
                 }
 
-                audioSourceStartPoint = currentTimeToPlaybackTime();
-                pauseAudioPlayback();
+                pauseAudioPlayback(true);
             });
 
             $(pCanvas).on('click', function(e){
                 var totalLength = canvasWidth;
                 var lengthIn = e.pageX - $(this).offset().left;
 
-                console.log(canvasWidth, e.pageX, $(this), $(this).offset().left, (lengthIn / totalLength), audioBuffer.duration);
                 audioSourceStartPoint = (lengthIn / totalLength) * audioBuffer.duration;
 
-                console.log(audioSourceStartPoint);
                 startAudioPlayback();
             });
 
@@ -256,9 +254,31 @@ function hasOwnProperty(obj, prop) {
                 //space bar
                 if (e.keyCode == 32)
                 {
-                    $("#mei").append("Got one at " + currentTimeToPlaybackTime() + ".<br>");
+                    //pause the audio playback and wait for zone
+                    startMeiAppend(currentTimeToPlaybackTime());
+                    pauseAudioPlayback(true);
                 }
             });
+        }
+
+        this.realTimeToPlaybackTime = function (time) 
+        {
+            realTimeToPlaybackTime(time);
+        };
+
+        this.currentTimeToPlaybackTime = function ()
+        {
+            currentTimeToPlaybackTime();
+        };
+
+        this.startAudioPlayback = function()
+        {
+            startAudioPlayback();
+        };
+
+        this.pauseAudioPlayback = function(saveCurrentPoint)
+        {
+            pauseAudioPlayback(saveCurrentPoint);
         }
 
         //Actual init function for the entire object

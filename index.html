@@ -1,13 +1,25 @@
 <!doctype html>
 <html>
     <head>
-        <title>Score Following</title>
+        <title>Score Following</title> 
+        <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
         <link rel="stylesheet" href="score-following.css" />
         <link rel="stylesheet" href="diva.min.css" />
+        <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/themes/smoothness/jquery-ui.css" />
+        <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+        <link rel="stylesheet" href="meix.js/css/meiEditor.css">
+
         <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js"></script>
+        <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
         <script src="audio.js"></script>
-        <script src="diva.min.js"></script>
+        <script src="mei.js"></script>
+        <script src="diva.min.js"></script>        
+        <script src="meix.js/js/lib/require.js"></script>
+        <script src="meix.js/js/local/meiEditorPreloader.js"></script>
         <script>
+            var meiEditor;
+            var waveformAudioPlayer;
             $(document).ready(function() {
                 $('#diva').diva({
                     enableAutoHeight: true,
@@ -19,15 +31,31 @@
                     enableDownload: true,
                     enableAutoTitle: false
                 });
-                $('#waveform').wap({});
+                $('#waveform').wap({}); 
+                waveformAudioPlayer = $("#waveform").data('wap');
+
+                var element = "#mei";
+                var settings = 
+                {
+                    'meiEditorLocation': '/meix.js/',
+                    'validatorLink': 'validation/',
+                    'xmllintLocation': 'js/lib/xmllint.js',
+                    'xmllintServer': 'http://132.206.14.122:8008'
+                };
+                var plugins = [];
+
+                meiEditor = new MeiEditor(element, settings, plugins);
+                $(window).on('meiEditorLoaded', function(){
+                    meiEditor = $("#mei").data('AceMeiEditor');
+                });
             });
         </script>
     </head> 
 
     <body>
         <div id="diva"></div>
-        <div id="waveform"></div>
         <div id="mei"></div>
+        <div id="waveform"></div>
     </body>
     <script>
     </script>

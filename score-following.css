@@ -11,7 +11,10 @@ body, html{
 }
 #mei{
     width: 50%;
+    max-width: 50%;
+    top: 200px;
     max-height: calc(100% - 200px);
+    height: calc(100% - 200px);
     float: left;
 }
 #diva{
