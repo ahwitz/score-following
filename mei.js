@@ -15,7 +15,6 @@ var initTop, initLeft;
 
 function overlayMouseDownListener(e)
 {
-	meiEditor.localLog("mousedown registered.");
 	$("#diva-overlay").on('mouseup', overlayMouseUpListener);
 	$("#diva-overlay").on('mousemove', overlayMouseMoveListener);
 	$("#diva-overlay").append('<div id="drag-div"></div>');
@@ -79,7 +78,7 @@ function overlayMouseUpListener(e)
 
 	divaData.highlightOnPage(divaData.getCurrentPageIndex(), [highlightInfo]);
 
-	meiEditor.localLog("Moseup registered ");
+	meiEditor.localLog("Created highlight at (" + draggedBoxLeft + "," + draggedBoxTop + ") to (" + draggedBoxRight + ", " + draggedBoxBottom + ")");
 	waveformAudioPlayer.startAudioPlayback();
 	$("#diva-overlay").unbind("mousedown", overlayMouseDownListener);
 	$("#diva-overlay").unbind("mousemove", overlayMouseMoveListener);

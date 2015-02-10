@@ -188,6 +188,16 @@ function hasOwnProperty(obj, prop) {
         //Initializes a sound once file is loaded
         function initSound(arrayBuffer) {
             wCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
+            /*
+            //Web Audio API devs say this is implemented, but I'm not sure if it is or not...
+            for(x in audioContext){console.log(x);}
+            var audioDecoderWorker = audioContext.createAudioWorker("audioDecoderWorker.js", 1, 1);
+            var attributes = {
+                'audioData': arrayBuffer
+            };
+            audioDecoderWorker.postMessage(attributes);
+            audioDecoderWorker.onmessage = function(buffer) {*/
+
             audioContext.decodeAudioData(arrayBuffer, function(buffer) {
                 // audioBuffer is global to reuse the decoded audio later.
                 audioBuffer = buffer;
