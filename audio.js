@@ -24,7 +24,9 @@ function hasOwnProperty(obj, prop) {
 
         //Web Audio API variables
         var audioContext = new AudioContext();
-        var gainMod;
+        var gainMod = audioContext.createGain();
+        var INITIAL_GAIN_VALUE = 0.1;
+        gainMod.gain.value = INITIAL_GAIN_VALUE;
         var audioBuffer;
         var audioSource;
 
@@ -94,9 +96,7 @@ function hasOwnProperty(obj, prop) {
             audioSource.loop = false;
             audioSource.isPlaying = true;
 
-            gainMod = audioContext.createGain();
             audioSource.connect(gainMod);
-            gainMod.gain.value = 0.5;
             gainMod.connect(audioContext.destination);
             audioSource.start(0, audioSourceStartPoint);
             audioSourceStartTime = Date.now() / 1000;
@@ -206,6 +206,7 @@ function hasOwnProperty(obj, prop) {
                 renderPlaybackCanvas();
                 $('#play-button').prop('disabled', false);
                 $('#pause-button').prop('disabled', false);
+                $('#source-volume').prop('disabled', false);
                 initListeners();
             }, function(e) {
                 console.log('Error decoding file', e);
@@ -265,20 +266,28 @@ function hasOwnProperty(obj, prop) {
                 if (e.keyCode == 32)
                 {
                     //pause the audio playback and wait for zone
-                    startMeiAppend(currentTimeToPlaybackTime());
-                    pauseAudioPlayback(true);
+                    if(audioSource.isPlaying)
+                    {
+                        startMeiAppend(currentTimeToPlaybackTime());
+                        pauseAudioPlayback(true);
+                    }
                 }
             });
         }
 
         this.realTimeToPlaybackTime = function (time) 
         {
-            realTimeToPlaybackTime(time);
+            return realTimeToPlaybackTime(time);
         };
 
         this.currentTimeToPlaybackTime = function ()
         {
-            currentTimeToPlaybackTime();
+            return currentTimeToPlaybackTime();
+        };
+
+        this.getStartPoint = function ()
+        {
+            return audioSourceStartPoint.toFixed(3);
         };
 
         this.startAudioPlayback = function()
@@ -295,7 +304,8 @@ function hasOwnProperty(obj, prop) {
         function init()
         {
             $("#waveform").append('<button id="play-button" disabled>Play</button>' +
-                '<button id="pause-button" disabled>Pause</button><br>' +
+                '<button id="pause-button" disabled>Pause</button>' +
+                '<input id="source-volume" type="range" min="0" max="1" step="0.01" value="' + INITIAL_GAIN_VALUE.toString() + '" disabled/><br>' +
                 '<input id="file-input" type="file" accept="audio/*"><br>' +
                 '<div id="error"></div><br>');
             canvasWidth = $("#waveform").width() - 20;
@@ -308,6 +318,10 @@ function hasOwnProperty(obj, prop) {
                 };
                 reader.readAsArrayBuffer(this.files[0]);
             }, false);
+
+            $("#source-volume").on('change', function(e){
+                if(gainMod) gainMod.gain.value = $("#source-volume").val();
+            });
 
             wCanvas = createCanvas("#error", canvasWidth, canvasHeight, "waveform-canvas"); //waveform canvas
             wCanvasContext = wCanvas.getContext('2d'); 

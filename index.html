@@ -52,6 +52,7 @@
                 meiEditor = new MeiEditor(element, settings, plugins);
                 $(window).on('meiEditorLoaded', function(){
                     meiEditor = $("#mei").data('AceMeiEditor');
+                    initializeMEI();
                 });
             });
         </script>

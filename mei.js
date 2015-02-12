@@ -13,6 +13,30 @@ function genUUID()
 
 var initTop, initLeft;
 
+var pageRef;
+var surfaceLine;
+
+function initializeMEI()
+{
+	var timeUUID = genUUID();
+	var defaultMEIString = ['<?xml version="1.0" encoding="UTF-8"?>',
+	'<mei xmlns="http://www.music-encoding.org/ns/mei" xml:id="' + genUUID() + '" meiversion="2013">',
+	'  <music xml:id="' + genUUID() + '">',
+	'    <timeline xml:id="' + genUUID() + '" origin="' + timeUUID + '">',
+	'      <when xml:id="' + timeUUID + '" absolute="00:00:00">',
+	'    </timeline xml:id="' + genUUID() + '">',
+	'    <facsimile xml:id="' + genUUID() + '">',
+ 	'      <surface xml:id="' + genUUID() + '">',
+	'      </surface>',
+	'    </facsimile>',
+	'  </music>',
+	'</mei>'];
+
+	pageRef = meiEditor.getPageData('untitled');
+	pageRef.session.doc.insertLines(0, defaultMEIString);
+	surfaceLine = 5;
+}
+
 function overlayMouseDownListener(e)
 {
 	$("#diva-overlay").on('mouseup', overlayMouseUpListener);
@@ -79,11 +103,48 @@ function overlayMouseUpListener(e)
 	divaData.highlightOnPage(divaData.getCurrentPageIndex(), [highlightInfo]);
 
 	meiEditor.localLog("Created highlight at (" + draggedBoxLeft + "," + draggedBoxTop + ") to (" + draggedBoxRight + ", " + draggedBoxBottom + ")");
-	waveformAudioPlayer.startAudioPlayback();
+
 	$("#diva-overlay").unbind("mousedown", overlayMouseDownListener);
 	$("#diva-overlay").unbind("mousemove", overlayMouseMoveListener);
 	$("#diva-overlay").unbind("mouseup", overlayMouseUpListener);
 	$("#diva-overlay").remove();
+
+	var surfaceSearch = pageRef.find(/\/surface/g,
+	{
+		wrap: true,
+		range: null
+	});
+	if(surfaceSearch === undefined)
+	{
+		meiEditor.localError("Could not find MEI 'surface' element to insert 'zone' element. Aborted.");
+		return false;
+	}
+	var surfaceLine = surfaceSearch.start.row;
+	var facsUUID = genUUID();
+	pageRef.session.doc.insertLines(surfaceLine, ['        <zone xml:id="' + facsUUID + '" ulx="' + draggedBoxLeft + '" uly="' + draggedBoxTop + '" lrx="' + draggedBoxRight + '" lry="' + draggedBoxBottom + '"/>']);
+
+	var timelineSearch = pageRef.find(/\/timeline/g,
+	{
+		wrap: true,
+		range: null
+	});
+	if(timelineSearch === undefined)
+	{
+		meiEditor.localError("Could not find MEI 'timeline' element to insert 'zone' element. Aborted.");
+		return false;
+	}
+	var timelineLine = timelineSearch.start.row; 
+
+	var startPoint = waveformAudioPlayer.getStartPoint();
+	var minutes = parseInt(startPoint / 60, 10);
+	startPoint -= minutes*60;
+	minutes = (minutes > 9) ? minutes.toString() : "0" + minutes.toString();
+
+	var timeString = "00:" + minutes + ":" + startPoint.toString();
+
+	pageRef.session.doc.insertLines(timelineLine, ['      <when xml:id="' + genUUID() + '" facs="' + facsUUID + '" absolute="' + timeString + '"/>']);
+	
+	waveformAudioPlayer.startAudioPlayback();
 }
 
 function startMeiAppend(time)
