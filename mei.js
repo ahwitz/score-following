@@ -11,10 +11,56 @@ function genUUID()
 	lut[d3&0xff]+lut[d3>>8&0xff]+lut[d3>>16&0xff]+lut[d3>>24&0xff];
 }
 
-var initTop, initLeft;
+String.prototype.endsWith = function(suffix) {
+    return this.indexOf(suffix, this.length - suffix.length) !== -1;
+};
 
+function parseXMLLine(text)
+{
+	var splits = text.split(" ");
+	var returnDict = {};
+	var returnDictKey;
+	splits[splits.length - 1] = splits[splits.length - 1].slice(0, -2);
+	for (idx in splits)
+	{
+		curSplit = splits[idx];
+
+		if(!curSplit) continue; //just a blank space
+		
+		if (curSplit.match(/\//g)) //we don't want ending lines
+		{
+			return;
+		}
+
+		if(curSplit.endsWith("/>")) //strip off the last two characters of single-line elements
+		{
+			splits[splits.length - 1] = splits[splits.length - 1].slice(0, -2);
+		}
+		else if(curSplit.endsWith(">")) //strip last character off multi-line elements
+		{
+			splits[splits.length - 1] = splits[splits.length - 1].slice(0, -1);
+		}
+
+		if (curSplit.match(/</g)) //if it's the first one, initialize the dict
+		{
+			returnDictKey = curSplit.substring(1);
+			returnDict[returnDictKey] = {};
+		}
+
+		else //add to the dict
+		{
+			var kv = curSplit.split("=");
+			returnDict[returnDictKey][kv[0]] = kv[1].slice(1, -1); 
+		}
+	}
+	return returnDict;
+}
+
+var initTop, initLeft;
 var pageRef;
 var surfaceLine;
+
+var facsPoints = {};
 
 function initializeMEI()
 {
@@ -135,16 +181,48 @@ function overlayMouseUpListener(e)
 	}
 	var timelineLine = timelineSearch.start.row; 
 
-	var startPoint = waveformAudioPlayer.getStartPoint();
-	var minutes = parseInt(startPoint / 60, 10);
-	startPoint -= minutes*60;
+	var origStartPoint = waveformAudioPlayer.getStartPoint();
+	var minutes = parseInt(origStartPoint / 60, 10);
+	var startPoint = origStartPoint - minutes*60;
 	minutes = (minutes > 9) ? minutes.toString() : "0" + minutes.toString();
 
-	var timeString = "00:" + minutes + ":" + startPoint.toString();
+	var timeString = ("00:" + minutes + ":" + startPoint).slice(0, 12); //cap to milliseconds because toFixed(3) doesn't always work in audio.js
 
 	pageRef.session.doc.insertLines(timelineLine, ['      <when xml:id="' + genUUID() + '" facs="' + facsUUID + '" absolute="' + timeString + '"/>']);
 	
 	waveformAudioPlayer.startAudioPlayback();
+
+	regenerateFacsPoints();
+}
+
+function regenerateFacsPoints()
+{
+	var linesArr = pageRef.session.doc.getAllLines();
+
+	for(line in linesArr)
+	{
+		var lineDict = parseXMLLine(linesArr[line]);
+		if (!lineDict) continue;
+		if (lineDict.hasOwnProperty('when'))
+		{
+			//facsPoints[start point] = {'facsUUID' : UUID of associated zone, 'yPos' : uly of associated zone}
+			facsPoints[lineDict['when']['absolute']] = {
+				'facsUUID': ((lineDict['when'].hasOwnProperty('facs')) ? lineDict['when']['facs'] : undefined),
+				yPos: 0
+			} 
+		}
+
+		else if (lineDict.hasOwnProperty('zone'))
+		{
+			for(curPoint in facsPoints)
+			{
+				if(curPoint['facsUUID'] == lineDict['zone']['xml:id'])
+				{
+					curPoint['yPos'] = lineDict['zone']['uly'];
+				}
+			}
+		}
+	}
 }
 
 function startMeiAppend(time)
