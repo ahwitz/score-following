@@ -79,7 +79,7 @@ function hasOwnProperty(obj, prop) {
 
         function currentTimeToPlaybackTime ()
         {
-            if(!audioSource.isPlaying) return audioSourceStartPoint;
+            if(audioSource && !audioSource.isPlaying) return audioSourceStartPoint;
 
             return realTimeToPlaybackTime(Date.now());
         }
@@ -314,6 +314,12 @@ function hasOwnProperty(obj, prop) {
         {
             pauseAudioPlayback(saveCurrentPoint);
         };
+
+        this.isPlaying = function()
+        {
+            if (!audioSource) return false;
+            return audioSource.isPlaying;
+        }
 
         //Actual init function for the entire object
         function init()
