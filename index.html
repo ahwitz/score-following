@@ -46,11 +46,12 @@
                 var settings = 
                 {
                     'meiEditorLocation': '/meix.js/',
-                    'validatorLink': 'validation/',
-                    'xmllintLocation': 'js/lib/xmllint.js',
-                    'xmllintServer': 'http://132.206.14.122:8008'
+                    'divaInstance': divaData,
+                    'jsonFileLocation': '/holst1Tiff.json',
+                    'oneToOneMEI': false,
+                    'skipXMLValidator': true
                 };
-                var plugins = [];
+                var plugins = ["meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
 
                 meiEditor = new MeiEditor(element, settings, plugins);
                 $(window).on('meiEditorLoaded', function(){

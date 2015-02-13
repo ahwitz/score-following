@@ -50,30 +50,6 @@ function parseXMLLine(text)
     return returnDict;
 }
 
-//finds the first line in the MEI that matches <tag att="val">
-function findLineInEditor(tag, att, val)
-{
-    var linesArr = pageRef.session.doc.getAllLines();
-
-    for(line in linesArr)
-    {
-        var retLine = parseInt(line, 10) + 1;
-        var lineDict = parseXMLLine(linesArr[line]);
-        if(!lineDict) continue;
-        else if (lineDict.hasOwnProperty(tag))
-        {
-            if (!att) return [retLine, lineDict];
-            else if (lineDict[tag].hasOwnProperty(att))
-            {
-                if (!val) return [retLine, lineDict];
-                else if (lineDict[tag][att] == val)
-                    return [retLine, lineDict];
-            }
-        }
-    }
-    return false;
-}
-
 var initTop, initLeft;
 var pageRef;
 
@@ -222,11 +198,11 @@ function overlayMouseUpListener(e)
 
     meiEditor.localLog("Created highlight at (" + draggedBoxLeft + "," + draggedBoxTop + ") to (" + draggedBoxRight + ", " + draggedBoxBottom + ")");
 
-    var surfaceLine = findLineInEditor('surface', 'n', pageIdx)[0];
+    var surfaceLine = meiEditor.findLineInEditor('surface', 'n', pageIdx)[0];
     var facsUUID = genUUID();
     pageRef.session.doc.insertLines(surfaceLine, ['        <zone xml:id="' + facsUUID + '" ulx="' + draggedBoxLeft + '" uly="' + draggedBoxTop + '" lrx="' + draggedBoxRight + '" lry="' + draggedBoxBottom + '"/>']);
 
-    var timelineLine = parseInt(findLineInEditor('/timeline')[0], 10) - 1;
+    var timelineLine = parseInt(meiEditor.findLineInEditor('/timeline')[0], 10) - 1;
 
     var origStartPoint = waveformAudioPlayer.getStartPoint();
     var minutes = parseInt(origStartPoint / 60, 10);
@@ -244,48 +220,47 @@ function overlayMouseUpListener(e)
 
 function regenerateFacsPoints()
 {
-    var linesArr = pageRef.session.doc.getAllLines();
-    facsPoints = {};
-    facsDict = {};
-    var curPage;
-
-    for(line in linesArr)
+    var onUpdate = function(facsDict)
     {
-        var lineDict = parseXMLLine(linesArr[line]);
-        if (!lineDict) continue;
+        var linesArr = pageRef.session.doc.getAllLines();
+        facsPoints = {};
+        var curPage;
 
-        if (lineDict.hasOwnProperty('when'))
+        for(line in linesArr)
         {
-            //facsPoints[start point] = {'facsUUID' : UUID of associated zone, 'yPos' : uly of associated zone}
-            facsPoints[lineDict['when']['absolute']] = {
-                'facsUUID': ((lineDict['when'].hasOwnProperty('facs')) ? lineDict['when']['facs'] : undefined),
-                yPos: 0
-            } 
-        }
-        else if (lineDict.hasOwnProperty('surface'))
-        {
-            curPage = lineDict['surface']['n'];
-            facsDict[curPage] = [];
-        }
-        else if (lineDict.hasOwnProperty('zone'))
-        {
-            var highlightInfo = {'width': lineDict['zone']['lrx'] - lineDict['zone']['ulx'], 'height': lineDict['zone']['lry'] - lineDict['zone']['uly'], 'ulx':lineDict['zone']['ulx'], 'uly': lineDict['zone']['uly'], 'divID': lineDict['zone']['xml:id']};
-            facsDict[curPage].push(highlightInfo);
-            for(curIdx in facsPoints)
+            var lineDict = parseXMLLine(linesArr[line]);
+            if (!lineDict) continue;
+
+            if (lineDict.hasOwnProperty('when'))
             {
-                var curPoint = facsPoints[curIdx];
-                if(curPoint['facsUUID'] == lineDict['zone']['xml:id'])
+                //facsPoints[start point] = {'facsUUID' : UUID of associated zone, 'yPos' : uly of associated zone}
+                facsPoints[lineDict['when']['absolute']] = {
+                    'facsUUID': ((lineDict['when'].hasOwnProperty('facs')) ? lineDict['when']['facs'] : undefined),
+                    yPos: 0
+                } 
+            }
+        }
+
+        for(page in facsDict)
+        {
+            for(zone in facsDict[page])
+            {
+                var curZone = facsDict[page][zone];
+                for(curIdx in facsPoints)
                 {
-                    curPoint['yPos'] = lineDict['zone']['uly'];
+                    var curPoint = facsPoints[curIdx];
+                    if(curPoint['facsUUID'] == curZone['divID'])
+                    {
+                        curPoint['yPos'] = curZone['uly'];
+                    }
                 }
             }
         }
+        meiEditor.events.unsubscribe('ZonesWereUpdated', onUpdate);
     }
     
-    for (page in facsDict)
-    {
-        divaData.highlightOnPage(page, facsDict[page]);
-    } 
+    meiEditor.events.subscribe('ZonesWereUpdated', onUpdate);
+    meiEditor.events.publish('UpdateZones');
 }
 
 function turnOnAutoscroll()
