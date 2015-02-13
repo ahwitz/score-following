@@ -45,6 +45,8 @@ function hasOwnProperty(obj, prop) {
         var ERROR_TIMEOUT_TIMER = 5000;
         var SAMPLE_RATE;
         var PEAK_RESOLUTION = 50;
+        var playbackMode = false;
+        var autoscrollMode = false;
 
         /* RESOURCE FUNCTIONS */
         //creates a canvas - before is a jQuery/CSS selector
@@ -265,11 +267,24 @@ function hasOwnProperty(obj, prop) {
                 //space bar
                 if (e.keyCode == 32)
                 {
-                    //pause the audio playback and wait for zone
-                    if(audioSource.isPlaying)
+                    if(playbackMode)
                     {
-                        startMeiAppend(currentTimeToPlaybackTime());
+                        if(audioSource && audioSource.isPlaying)
+                        {
+                            pauseAudioPlayback(true);
+                        }
+                        else
+                        {
+                            startAudioPlayback();
+                        }
+
+                    }
+
+                    //pause the audio playback and wait for zone
+                    else if(audioSource && audioSource.isPlaying)
+                    {
                         pauseAudioPlayback(true);
+                        startMeiAppend(currentTimeToPlaybackTime());
                     }
                 }
             });
@@ -298,14 +313,16 @@ function hasOwnProperty(obj, prop) {
         this.pauseAudioPlayback = function(saveCurrentPoint)
         {
             pauseAudioPlayback(saveCurrentPoint);
-        }
+        };
 
         //Actual init function for the entire object
         function init()
         {
             $("#waveform").append('<button id="play-button" disabled>Play</button>' +
                 '<button id="pause-button" disabled>Pause</button>' +
-                '<input id="source-volume" type="range" min="0" max="1" step="0.01" value="' + INITIAL_GAIN_VALUE.toString() + '" disabled/><br>' +
+                '&nbsp;&nbsp;Volume: <input id="source-volume" type="range" min="0" max="1" step="0.01" value="' + INITIAL_GAIN_VALUE.toString() + '" disabled/>' +
+                '&nbsp;&nbsp;Playback mode: <input type="checkbox" id="playback-checkbox">' +
+                '<span id="autoscroll-wrapper" style="display:none">&nbsp;&nbsp;Autoscroll: <input type="checkbox" id="autoscroll-checkbox"></span><br>' +
                 '<input id="file-input" type="file" accept="audio/*"><br>' +
                 '<div id="error"></div><br>');
             canvasWidth = $("#waveform").width() - 20;
@@ -318,6 +335,11 @@ function hasOwnProperty(obj, prop) {
                 };
                 reader.readAsArrayBuffer(this.files[0]);
             }, false);
+
+            $("#playback-checkbox").on('change', function(e)
+            {
+                playbackMode = $("#playback-checkbox").is(":checked");
+            });
 
             $("#source-volume").on('change', function(e){
                 if(gainMod) gainMod.gain.value = $("#source-volume").val();
