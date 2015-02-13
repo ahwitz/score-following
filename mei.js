@@ -20,25 +20,19 @@ function parseXMLLine(text)
     var splits = text.split(" ");
     var returnDict = {};
     var returnDictKey;
-    splits[splits.length - 1] = splits[splits.length - 1].slice(0, -2);
     for (idx in splits)
     {
         curSplit = splits[idx];
 
-        if(!curSplit) continue; //just a blank space
-        
-        if (curSplit.match(/\//g)) //we don't want ending lines
-        {
-            return undefined;
-        }
+        if(!curSplit || curSplit == " ") continue; //just a blank space
 
-        if(curSplit.endsWith("/>")) //strip off the last two characters of single-line elements
+        if(curSplit.match(/\/>/g)) //strip off the last two characters of single-line elements
         {
-            splits[splits.length - 1] = splits[splits.length - 1].slice(0, -2);
+            curSplit = curSplit.slice(0, -2);
         }
-        else if(curSplit.endsWith(">")) //strip last character off multi-line elements
+        else if(curSplit.match(/>/g)) //strip last character off multi-line elements
         {
-            splits[splits.length - 1] = splits[splits.length - 1].slice(0, -1);
+            curSplit = curSplit.slice(0, -1);
         }
 
         if (curSplit.match(/</g)) //if it's the first one, initialize the dict
@@ -83,7 +77,8 @@ function findLineInEditor(tag, att, val)
 var initTop, initLeft;
 var pageRef;
 
-var facsPoints = {};
+var facsPoints = {}; //stores zone to when info
+var facsDict = {}; //stores solely zone info
 var pageRefs = [];
 var autoscrollMode = false;
 var autoscrollInterval;
@@ -126,6 +121,40 @@ function initializeMEI()
     pageRef.session.doc.insertLines(0, defaultMEIString);
     
     //meiEditor.events.subscribe("PageEdited", regenerateFacsPoints);
+    $("#playback-checkbox").on('change', function(e)
+    {
+        $("#autoscroll-wrapper").css('display', ($("#playback-checkbox").is(":checked") ? "inline" : "none"));
+        if(!$("#playback-checkbox").is(":checked"))
+        {
+            turnOffAutoscroll();
+        }
+
+        $("#autoscroll-checkbox").on('change', function(e)
+        {
+            if(autoscrollMode != $("#autoscroll-checkbox").is(":checked"))
+            {
+                autoscrollMode = $("#autoscroll-checkbox").is(":checked");
+            }
+            if(waveformAudioPlayer.isPlaying() && autoscrollMode)
+            {
+                turnOnAutoscroll()
+            }
+            else if (!autoscrollMode)
+            {
+                turnOffAutoscroll();
+            }
+        });
+    });
+    $("#playback-checkbox").after("<button onclick='regenerateFacsPoints()'>Reload MEI</button>");
+    $("#pause-button").on('click', function()
+    {
+        if (autoscrollMode) turnOffAutoscroll();
+    });
+
+    $("#play-button").on('click', function()
+    {
+        if (autoscrollMode) turnOnAutoscroll();
+    });
 }
 
 function overlayMouseDownListener(e)
@@ -189,8 +218,6 @@ function overlayMouseUpListener(e)
     var draggedBoxBottom = divaData.translateToMaxZoomLevel(draggedBoxTop + $("#drag-div").outerHeight());
     draggedBoxTop = divaData.translateToMaxZoomLevel(draggedBoxTop);
 
-    var highlightInfo = {'width': draggedBoxRight - draggedBoxLeft, 'height': draggedBoxBottom - draggedBoxTop, 'ulx':draggedBoxLeft, 'uly': draggedBoxTop, 'divID': genUUID()};
-
     var pageIdx = divaData.getCurrentPageIndex();
 
     meiEditor.localLog("Created highlight at (" + draggedBoxLeft + "," + draggedBoxTop + ") to (" + draggedBoxRight + ", " + draggedBoxBottom + ")");
@@ -199,7 +226,7 @@ function overlayMouseUpListener(e)
     var facsUUID = genUUID();
     pageRef.session.doc.insertLines(surfaceLine, ['        <zone xml:id="' + facsUUID + '" ulx="' + draggedBoxLeft + '" uly="' + draggedBoxTop + '" lrx="' + draggedBoxRight + '" lry="' + draggedBoxBottom + '"/>']);
 
-    var timelineLine = findLineInEditor('timeline')[0];
+    var timelineLine = parseInt(findLineInEditor('/timeline')[0], 10) - 1;
 
     var origStartPoint = waveformAudioPlayer.getStartPoint();
     var minutes = parseInt(origStartPoint / 60, 10);
@@ -218,11 +245,15 @@ function overlayMouseUpListener(e)
 function regenerateFacsPoints()
 {
     var linesArr = pageRef.session.doc.getAllLines();
+    facsPoints = {};
+    facsDict = {};
+    var curPage;
 
     for(line in linesArr)
     {
         var lineDict = parseXMLLine(linesArr[line]);
         if (!lineDict) continue;
+
         if (lineDict.hasOwnProperty('when'))
         {
             //facsPoints[start point] = {'facsUUID' : UUID of associated zone, 'yPos' : uly of associated zone}
@@ -231,11 +262,18 @@ function regenerateFacsPoints()
                 yPos: 0
             } 
         }
-
+        else if (lineDict.hasOwnProperty('surface'))
+        {
+            curPage = lineDict['surface']['n'];
+            facsDict[curPage] = [];
+        }
         else if (lineDict.hasOwnProperty('zone'))
         {
-            for(curPoint in facsPoints)
+            var highlightInfo = {'width': lineDict['zone']['lrx'] - lineDict['zone']['ulx'], 'height': lineDict['zone']['lry'] - lineDict['zone']['uly'], 'ulx':lineDict['zone']['ulx'], 'uly': lineDict['zone']['uly'], 'divID': lineDict['zone']['xml:id']};
+            facsDict[curPage].push(highlightInfo);
+            for(curIdx in facsPoints)
             {
+                var curPoint = facsPoints[curIdx];
                 if(curPoint['facsUUID'] == lineDict['zone']['xml:id'])
                 {
                     curPoint['yPos'] = lineDict['zone']['uly'];
@@ -243,28 +281,12 @@ function regenerateFacsPoints()
             }
         }
     }
-
-    //here: 
-    //divaData.highlightOnPage(divaData.getCurrentPageIndex(), [highlightInfo]);
+    
+    for (page in facsDict)
+    {
+        divaData.highlightOnPage(page, facsDict[page]);
+    } 
 }
-
-$("#playback-checkbox").on('change', function(e)
-{
-    $("#autoscroll-wrapper").css('display', ($("#playback-checkbox").is(":checked") ? "inline" : "none"));
-    if(!$("#playback-checkbox").is(":checked"))
-    {
-        turnOffAutoscroll();
-    }
-
-    $("#autoscroll-checkbox").on('change', function(e)
-    {
-        if(autoscrollMode != $("#autoscroll-checkbox").is(":checked"))
-        {
-            autoscrollMode = $("#autoscroll-checkbox").is(":checked");
-        }
-        autoscrollMode ? turnOnAutoscroll : turnOffAutoscroll;
-    });
-});
 
 function turnOnAutoscroll()
 {
@@ -275,21 +297,26 @@ function turnOnAutoscroll()
 function refreshScrollingSpeed()
 {
     var playbackTime = waveformAudioPlayer.currentTimeToPlaybackTime();
-    var prevPoint;
+    var prevPoint, prevTime;
     var timeDiff;
     var pixelDiff;
+    console.log("playback time:", playbackTime);
     for (curPoint in facsPoints)
     {
-        if (curPoint > playbackTime)
+        var timeSplit = curPoint.split(":");
+        var curTime = parseInt(timeSplit[0], 10)*3600 + parseInt(timeSplit[1], 10)*60 + parseFloat(timeSplit[2]);
+        if (curTime > playbackTime)
         {
-            timeDiff = curPoint - prevPoint;
+            timeDiff = curTime - prevTime;
+            console.log(facsPoints[curPoint]['yPos'], facsPoints[prevPoint]['yPos']);
             pixelDiff = facsPoints[curPoint]['yPos'] - facsPoints[prevPoint]['yPos'];
             break;
         }
         prevPoint = curPoint;
+        prevTime = curTime;
     }
     window.clearInterval(autoscrollInterval);
-    autoscrollInterval = window.setInterval(refreshScrollingSpeed, timeDiff);
+    //autoscrollInterval = window.setInterval(refreshScrollingSpeed, timeDiff);
     console.log('setting to', pixelDiff, timeDiff, pixelDiff / timeDiff);
     divaData.changeScrollSpeed(pixelDiff / timeDiff);
 };
