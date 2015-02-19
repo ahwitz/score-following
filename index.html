@@ -22,14 +22,16 @@
                     enableAutoHeight: true,
                     fixedHeightGrid: false,
                     iipServerURL: "http://localhost/fcgi-bin/iipsrv.fcgi",
-                    objectData: "/holst1Tiff.json",
-                    imageDir: "/srv/images/holst1Tiff/",
+                    objectData: "/holst2Tiff.json",
+                    imageDir: "/srv/images/holst2Tiff/",
                     enableAutoscroll: true,
                     disableAutoscrollPrefs: true,
+                    disableManualScroll: true,
                     enableCanvas: true,
                     enableDownload: true,
                     enableHighlight: true,
-                    enableAutoTitle: false
+                    enableAutoTitle: false,
+                    verticallyOriented: false
                 });
 
                 divaData = $("#diva").data('diva');
@@ -45,7 +47,7 @@
                     'jsonFileLocation': '/holst1Tiff.json',
                     'oneToOneMEI': false,
                     'skipXMLValidator': true,
-                    'initializeWithFile': '/testMEI.xml'
+                    //'initializeWithFile': '/testMEI.xml'
                 };
                 var plugins = ["meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
 

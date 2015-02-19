@@ -20,7 +20,7 @@ function parseXMLLine(text)
     var splits = text.split(" ");
     var returnDict = {};
     var returnDictKey;
-    for (idx in splits)
+    for (var idx in splits)
     {
         curSplit = splits[idx];
 
@@ -91,10 +91,10 @@ function initializeMEI()
     '  </music>',
     '</mei>'];
 
-    for (line in meiAppend) defaultMEIString.push(meiAppend[line]);
+    for (var line in meiAppend) defaultMEIString.push(meiAppend[line]);
 
-    //pageRef = meiEditor.getPageData(meiEditor.getActivePageTitle());
-    //pageRef.session.doc.insertLines(0, defaultMEIString);
+    pageRef = meiEditor.getPageData(meiEditor.getActivePageTitle());
+    pageRef.session.doc.insertLines(0, defaultMEIString);
     
     //meiEditor.events.subscribe("PageEdited", regenerateFacsPoints);
     $("#playback-checkbox").on('change', function(e)
@@ -113,7 +113,7 @@ function initializeMEI()
             }
             if(waveformAudioPlayer.isPlaying() && autoscrollMode)
             {
-                turnOnAutoscroll()
+                turnOnAutoscroll();
             }
             else if (!autoscrollMode)
             {
@@ -131,7 +131,9 @@ function initializeMEI()
     {
         if (autoscrollMode) turnOnAutoscroll();
     });
-    meiEditor.events.publish('UpdateZones');
+
+    //we need the facs points to start and this will update zones
+    regenerateFacsPoints();
 }
 
 function overlayMouseDownListener(e)
@@ -225,9 +227,8 @@ function regenerateFacsPoints()
     {
         var linesArr = pageRef.session.doc.getAllLines();
         facsPoints = {};
-        var curPage;
 
-        for(line in linesArr)
+        for(var line in linesArr)
         {
             var lineDict = parseXMLLine(linesArr[line]);
             if (!lineDict) continue;
@@ -235,37 +236,70 @@ function regenerateFacsPoints()
             if (lineDict.hasOwnProperty('when'))
             {
                 //facsPoints[start point] = {'facsUUID' : UUID of associated zone, 'yPos' : uly of associated zone}
-                facsPoints[lineDict['when']['absolute']] = {
-                    'facsUUID': ((lineDict['when'].hasOwnProperty('facs')) ? lineDict['when']['facs'] : undefined),
+                facsPoints[lineDict.when.absolute] = {
+                    'facsUUID': ((lineDict.when.hasOwnProperty('facs')) ? lineDict.when.facs : undefined),
                     yPos: 0
-                } 
+                };
             }
         }
 
-        for(page in facsDict)
+        for(var page in facsDict)
         {
-            for(zone in facsDict[page])
+            for(var zone in facsDict[page])
             {
                 var curZone = facsDict[page][zone];
-                for(curIdx in facsPoints)
+                for(var curIdx in facsPoints)
                 {
                     var curPoint = facsPoints[curIdx];
-                    if(curPoint['facsUUID'] == curZone['divID'])
+                    if(curPoint.facsUUID == curZone.divID)
                     {
-                        curPoint['yPos'] = curZone['uly'];
+                        curPoint.yPos = parseInt(curZone.uly, 10);
                     }
                 }
             }
         }
         meiEditor.events.unsubscribe('ZonesWereUpdated', onUpdate);
-    }
+    };
     
     meiEditor.events.subscribe('ZonesWereUpdated', onUpdate);
     meiEditor.events.publish('UpdateZones');
 }
 
+function stringTimeToFloat(time)
+{
+    var timeSplit = time.split(":");
+    return parseInt(timeSplit[0], 10)*3600 + parseInt(timeSplit[1], 10)*60 + parseFloat(timeSplit[2]);
+}
+
+//time in piece
+function pixelPositionForTime(time)
+{
+    var curPix, curTime, prevPix, prevTime;
+    var timeDiff;
+    var pixelDiff;
+
+    for (var curPoint in facsPoints)
+    {
+        curTime = stringTimeToFloat(curPoint);
+        if (curTime > time)
+        {
+            timeDiff = curTime - prevTime;
+            curPix = facsPoints[curPoint].yPos;
+            prevPix = facsPoints[prevPoint].yPos;
+            pixelDiff = curPix - prevPix;
+            break;
+        }
+        prevPoint = curPoint;
+        prevTime = curTime;
+    } 
+
+    var timeRatio = (time - prevTime)/(curTime - prevTime);
+    return prevPix + timeRatio*(curPix - prevPix);
+}
+
 function turnOnAutoscroll()
 {
+    divaData.getSettings().outerObject.scrollTop(pixelPositionForTime(waveformAudioPlayer.currentTimeToPlaybackTime()));
     refreshScrollingSpeed();
     divaData.startScrolling();
 }
@@ -276,32 +310,30 @@ function refreshScrollingSpeed()
     var prevPoint, prevTime;
     var timeDiff;
     var pixelDiff;
-    console.log("playback time:", playbackTime);
-    for (curPoint in facsPoints)
+
+    for (var curPoint in facsPoints)
     {
         var timeSplit = curPoint.split(":");
         var curTime = parseInt(timeSplit[0], 10)*3600 + parseInt(timeSplit[1], 10)*60 + parseFloat(timeSplit[2]);
         if (curTime > playbackTime)
         {
             timeDiff = curTime - prevTime;
-            console.log(facsPoints[curPoint]['yPos'], facsPoints[prevPoint]['yPos']);
-            pixelDiff = facsPoints[curPoint]['yPos'] - facsPoints[prevPoint]['yPos'];
+            pixelDiff = facsPoints[curPoint].yPos - facsPoints[prevPoint].yPos;
             break;
         }
         prevPoint = curPoint;
         prevTime = curTime;
     }
     window.clearInterval(autoscrollInterval);
-    //autoscrollInterval = window.setInterval(refreshScrollingSpeed, timeDiff);
-    console.log('setting to', pixelDiff, timeDiff, pixelDiff / timeDiff);
+    autoscrollInterval = window.setInterval(refreshScrollingSpeed, timeDiff * 1000);
     divaData.changeScrollSpeed(pixelDiff / timeDiff);
-};
+}
 
 function turnOffAutoscroll()
 {
     window.clearInterval(autoscrollInterval);
     divaData.stopScrolling();
-};
+}
 
 function endMeiAppend()
 {
