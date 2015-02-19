@@ -93,8 +93,8 @@ function initializeMEI()
 
     for (line in meiAppend) defaultMEIString.push(meiAppend[line]);
 
-    pageRef = meiEditor.getPageData('untitled');
-    pageRef.session.doc.insertLines(0, defaultMEIString);
+    //pageRef = meiEditor.getPageData(meiEditor.getActivePageTitle());
+    //pageRef.session.doc.insertLines(0, defaultMEIString);
     
     //meiEditor.events.subscribe("PageEdited", regenerateFacsPoints);
     $("#playback-checkbox").on('change', function(e)
@@ -131,6 +131,7 @@ function initializeMEI()
     {
         if (autoscrollMode) turnOnAutoscroll();
     });
+    meiEditor.events.publish('UpdateZones');
 }
 
 function overlayMouseDownListener(e)

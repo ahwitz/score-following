@@ -4,18 +4,13 @@
         <title>Score Following</title> 
         <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
         <link rel="stylesheet" href="score-following.css" />
-        <link rel="stylesheet" href="diva.min.css" />
-        <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/themes/smoothness/jquery-ui.css" />
-        <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+        <link rel="stylesheet" href="diva.js/build/css/diva.min.css" />
         <link rel="stylesheet" href="meix.js/css/meiEditor.css">
 
-        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-        <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.10.4/jquery-ui.min.js"></script>
-        <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.js"></script>
         <script src="audio.js"></script>
         <script src="mei.js"></script>
-        <script src="diva.min.js"></script>   
-        <script src="autoscroll.js"></script>       
+        <script src="diva.js/build/js/diva.min.js"></script>  
         <script src="meix.js/js/lib/require.js"></script>
         <script src="meix.js/js/local/meiEditorPreloader.js"></script>
         <script>
@@ -49,7 +44,8 @@
                     'divaInstance': divaData,
                     'jsonFileLocation': '/holst1Tiff.json',
                     'oneToOneMEI': false,
-                    'skipXMLValidator': true
+                    'skipXMLValidator': true,
+                    'initializeWithFile': '/testMEI.xml'
                 };
                 var plugins = ["meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
 

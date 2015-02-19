@@ -1,3 +1,6 @@
 [submodule "meix.js"]
 	path = meix.js
 	url = git@github.com:DDMAL/meix.js
+[submodule "diva.js"]
+	path = diva.js
+	url = git@github.com:DDMAL/diva.js
