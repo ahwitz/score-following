@@ -94,7 +94,7 @@ function initializeMEI()
     for (var line in meiAppend) defaultMEIString.push(meiAppend[line]);
 
     pageRef = meiEditor.getPageData(meiEditor.getActivePageTitle());
-    pageRef.session.doc.insertLines(0, defaultMEIString);
+    //pageRef.session.doc.insertLines(0, defaultMEIString);
     
     //meiEditor.events.subscribe("PageEdited", regenerateFacsPoints);
     $("#playback-checkbox").on('change', function(e)
@@ -238,7 +238,8 @@ function regenerateFacsPoints()
                 //facsPoints[start point] = {'facsUUID' : UUID of associated zone, 'yPos' : uly of associated zone}
                 facsPoints[lineDict.when.absolute] = {
                     'facsUUID': ((lineDict.when.hasOwnProperty('facs')) ? lineDict.when.facs : undefined),
-                    yPos: 0
+                    yPos: 0,
+                    xPos: 0
                 };
             }
         }
@@ -254,6 +255,7 @@ function regenerateFacsPoints()
                     if(curPoint.facsUUID == curZone.divID)
                     {
                         curPoint.yPos = parseInt(curZone.uly, 10);
+                        curPoint.xPos = parseInt(curZone.ulx, 10);
                     }
                 }
             }
@@ -274,9 +276,8 @@ function stringTimeToFloat(time)
 //time in piece
 function pixelPositionForTime(time)
 {
-    var curPix, curTime, prevPix, prevTime;
+    var curXPix, curYPix, curTime, prevXPix, prevYPix, prevTime;
     var timeDiff;
-    var pixelDiff;
 
     for (var curPoint in facsPoints)
     {
@@ -284,9 +285,10 @@ function pixelPositionForTime(time)
         if (curTime > time)
         {
             timeDiff = curTime - prevTime;
-            curPix = facsPoints[curPoint].yPos;
-            prevPix = facsPoints[prevPoint].yPos;
-            pixelDiff = curPix - prevPix;
+            curYPix = facsPoints[curPoint].yPos;
+            prevYPix = facsPoints[prevPoint].yPos;
+            curXPix = facsPoints[curPoint].xPos;
+            prevXPix = facsPoints[prevPoint].xPos; 
             break;
         }
         prevPoint = curPoint;
@@ -294,22 +296,28 @@ function pixelPositionForTime(time)
     } 
 
     var timeRatio = (time - prevTime)/(curTime - prevTime);
-    return prevPix + timeRatio*(curPix - prevPix);
+    return {'x': prevXPix + timeRatio*(curXPix - prevXPix), 'y':prevYPix + timeRatio*(curYPix - prevYPix)};
 }
 
 function turnOnAutoscroll()
 {
-    divaData.getSettings().outerObject.scrollTop(pixelPositionForTime(waveformAudioPlayer.currentTimeToPlaybackTime()));
+    var curPosition = pixelPositionForTime(waveformAudioPlayer.currentTimeToPlaybackTime());
+    if (divaData.isVerticallyOriented()) divaData.getSettings().outerObject.scrollTop(curPosition.y);
+    else divaData.getSettings().outerObject.scrollLeft(curPosition.x);
     refreshScrollingSpeed();
     divaData.startScrolling();
 }
 
 function refreshScrollingSpeed()
 {
+    var curPosition = pixelPositionForTime(waveformAudioPlayer.currentTimeToPlaybackTime());
+    if (divaData.isVerticallyOriented()) divaData.getSettings().outerObject.scrollTop(curPosition.y);
+    else divaData.getSettings().outerObject.scrollLeft(curPosition.x);
     var playbackTime = waveformAudioPlayer.currentTimeToPlaybackTime();
     var prevPoint, prevTime;
     var timeDiff;
     var pixelDiff;
+    var counter = 0;
 
     for (var curPoint in facsPoints)
     {
@@ -318,15 +326,28 @@ function refreshScrollingSpeed()
         if (curTime > playbackTime)
         {
             timeDiff = curTime - prevTime;
-            pixelDiff = facsPoints[curPoint].yPos - facsPoints[prevPoint].yPos;
+            if(divaData.isVerticallyOriented()) pixelDiff = facsPoints[curPoint].yPos - facsPoints[prevPoint].yPos;
+            else pixelDiff = facsPoints[curPoint].xPos - facsPoints[prevPoint].xPos;
             break;
         }
         prevPoint = curPoint;
         prevTime = curTime;
+        counter++;
     }
+
     window.clearInterval(autoscrollInterval);
-    autoscrollInterval = window.setInterval(refreshScrollingSpeed, timeDiff * 1000);
-    divaData.changeScrollSpeed(pixelDiff / timeDiff);
+    
+    if (counter == Object.keys(facsPoints).length)
+    {
+        divaData.changeScrollSpeed(10);
+        meiEditor.localLog("No more zones to sync scrolling to. Defaulting to 10 pixels per second.");
+    } 
+    else 
+    {
+        autoscrollInterval = window.setInterval(refreshScrollingSpeed, timeDiff * 1000);
+        divaData.changeScrollSpeed(pixelDiff / timeDiff);
+        meiEditor.localLog("Changing scrolling speed to", pixelDiff / timeDiff, ".");
+    }
 }
 
 function turnOffAutoscroll()
