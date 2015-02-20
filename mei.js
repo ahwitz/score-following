@@ -94,7 +94,9 @@ function initializeMEI()
     for (var line in meiAppend) defaultMEIString.push(meiAppend[line]);
 
     pageRef = meiEditor.getPageData(meiEditor.getActivePageTitle());
-    //pageRef.session.doc.insertLines(0, defaultMEIString);
+    
+    if(!meixSettings.hasOwnProperty('initializeWithFile'))
+        pageRef.session.doc.insertLines(0, defaultMEIString);
     
     //meiEditor.events.subscribe("PageEdited", regenerateFacsPoints);
     $("#playback-checkbox").on('change', function(e)
@@ -226,9 +228,13 @@ function regenerateFacsPoints()
     var onUpdate = function(facsDict)
     {
         var linesArr = pageRef.session.doc.getAllLines();
+        var minPage = divaData.getNumberOfPages();
         facsPoints = {};
+        var curPoint;
+        var midXPoint = $("#diva").width() / 2;
+        var midYPoint = $("#diva").height() / 2;
 
-        for(var line in linesArr)
+        for (var line in linesArr)
         {
             var lineDict = parseXMLLine(linesArr[line]);
             if (!lineDict) continue;
@@ -244,22 +250,34 @@ function regenerateFacsPoints()
             }
         }
 
-        for(var page in facsDict)
+        for (var page in facsDict)
         {
+            if (page < minPage) minPage = page;
+
             for(var zone in facsDict[page])
             {
                 var curZone = facsDict[page][zone];
                 for(var curIdx in facsPoints)
                 {
-                    var curPoint = facsPoints[curIdx];
+                    curPoint = facsPoints[curIdx];
                     if(curPoint.facsUUID == curZone.divID)
                     {
-                        curPoint.yPos = parseInt(curZone.uly, 10);
-                        curPoint.xPos = parseInt(curZone.ulx, 10);
+                        curPoint.yPos = Math.max(0, parseInt(curZone.uly, 10) - midYPoint);
+                        curPoint.xPos = Math.max(0, parseInt(curZone.ulx, 10) - midXPoint);
+                        break;
                     }
                 }
             }
         }
+
+        var minPageOffset = divaData.getPageOffset(minPage);
+        if(facsPoints.length > 0) {
+            facsPoints["00:00:0"] = {
+                'xPos': minPageOffset.left,
+                'yPos': minPageOffset.top
+            };
+        }
+
         meiEditor.events.unsubscribe('ZonesWereUpdated', onUpdate);
     };
     
@@ -346,7 +364,7 @@ function refreshScrollingSpeed()
     {
         autoscrollInterval = window.setInterval(refreshScrollingSpeed, timeDiff * 1000);
         divaData.changeScrollSpeed(pixelDiff / timeDiff);
-        meiEditor.localLog("Changing scrolling speed to", pixelDiff / timeDiff, ".");
+        meiEditor.localLog("Changing scrolling speed to " + (pixelDiff / timeDiff) + ".");
     }
 }
 

@@ -17,41 +17,45 @@
             var meiEditor;
             var waveformAudioPlayer;
             var divaData;
+
+            var divaSettings ={
+                enableAutoHeight: true,
+                fixedHeightGrid: false,
+                iipServerURL: "http://localhost/fcgi-bin/iipsrv.fcgi",
+                objectData: "/holst2Tiff.json",
+                imageDir: "/srv/images/holst2Tiff/",
+                enableAutoscroll: true,
+                disableAutoscrollPrefs: true,
+                disableManualScroll: true,
+                enableCanvas: true,
+                enableDownload: true,
+                enableHighlight: true,
+                enableAutoTitle: false,
+                verticallyOriented: false
+            };
+
+            var element = "#mei";
+            var meixSettings = 
+            {
+                'meiEditorLocation': '/meix.js/',
+                'divaInstance': divaData,
+                'jsonFileLocation': '/holst1Tiff.json',
+                'oneToOneMEI': false,
+                'skipXMLValidator': true,
+                'initializeWithFile': '/holst2.xml'
+            };
+            var plugins = ["meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
+
             $(document).ready(function() {
-                $('#diva').diva({
-                    enableAutoHeight: true,
-                    fixedHeightGrid: false,
-                    iipServerURL: "http://localhost/fcgi-bin/iipsrv.fcgi",
-                    objectData: "/holst2Tiff.json",
-                    imageDir: "/srv/images/holst2Tiff/",
-                    enableAutoscroll: true,
-                    disableAutoscrollPrefs: true,
-                    disableManualScroll: true,
-                    enableCanvas: true,
-                    enableDownload: true,
-                    enableHighlight: true,
-                    enableAutoTitle: false,
-                    verticallyOriented: false
-                });
+                $('#diva').diva(divaSettings);
 
                 divaData = $("#diva").data('diva');
+                meixSettings.divaInstance = divaData;
 
                 $('#waveform').wap({}); 
                 waveformAudioPlayer = $("#waveform").data('wap');
 
-                var element = "#mei";
-                var settings = 
-                {
-                    'meiEditorLocation': '/meix.js/',
-                    'divaInstance': divaData,
-                    'jsonFileLocation': '/holst1Tiff.json',
-                    'oneToOneMEI': false,
-                    'skipXMLValidator': true,
-                    'initializeWithFile': '/testMEI.xml'
-                };
-                var plugins = ["meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
-
-                meiEditor = new MeiEditor(element, settings, plugins);
+                meiEditor = new MeiEditor(element, meixSettings, plugins);
                 $(window).on('meiEditorLoaded', function(){
                     meiEditor = $("#mei").data('AceMeiEditor');
                     initializeMEI();
