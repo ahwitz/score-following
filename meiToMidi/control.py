@@ -11,7 +11,7 @@ import pdb
 
 # freq to midi
 def freqToMidi(f):
-   return int(12 * log((f / 440), 2) + 69)
+   return int(round(12 * log((f / 440), 2) + 69))
 
 # midi to freq
 def midiToFreq(midi):
@@ -32,13 +32,14 @@ def midiToNote(midi):
 
 MAX_FREQ = 3000
 wav_debug = False
+normalize_audio = False
  
 
 meiFile = "meiToMidi/salzinnes/mei/CF-028-music.mei"
 stem = 'meiToMidi/cf-028'
 p = converter.parseFile(meiFile, None, 'mei', True)
 # tempos = [z.secondsPerQuarter() for x, y, z in p.metronomeMarkBoundaries()]
-tempo = p.metronomeMarkBoundaries()[0][2].secondsPerQuarter() # in seconds per quarter
+tempo = p.metronomeMarkBoundaries()[0][2].secondsPerQuarter() / 4 # in seconds per quarter
 p.write('midi', stem + '.midi')
 fp = open(stem + ".wav", "w")
 p1 = Popen(["timidity", stem + ".midi", "-Ow"], stdout=fp)
@@ -48,20 +49,29 @@ fp.close()
 # pdb.set_trace()
 sample_rate, data = wavfile.read(stem + '.wav')
 first_track = data.T[0] # first channel
-# audio_data = [(f / 2**16.) for f in first_track] # normalizes to 0; 2^16 is x-bit audio
-seconds = len(first_track) / sample_rate
+if normalize_audio:
+	# normalizes to 0; 2^16 is x-bit audio
+	first_track = [(f / 2**16.) for f in first_track]
+
+audible_length = len(first_track) - 1
+while first_track[audible_length] == -1:
+	audible_length -= 1
+
+seconds = audible_length / sample_rate
 quarters = int(floor(seconds / tempo)) # quarter notes in the piece
-samplesPerQuarter = len(first_track) / quarters
+samplesPerQuarter = floor(audible_length / quarters)
 plot_length = min(samplesPerQuarter / 2, MAX_FREQ)
 
-#print seconds, quarters, samplesPerQuarter, plot_length
-
 print "Writing: "
+lastMidi = -1
 for x in range(0, quarters): 
-	fourier_plot = fft(first_track[samplesPerQuarter*x:samplesPerQuarter*(x + 1)])
+	start_point = int(samplesPerQuarter*x)
+	end_point = int(samplesPerQuarter*(x + 1))
+	track_subsection = first_track[start_point:end_point]
+	fourier_plot = fft(track_subsection)
 	
 	if wav_debug:
-		wavfile.write('wavout/quarter' + str(x) + 'wav', sample_rate,  first_track[samplesPerQuarter*x:samplesPerQuarter*(x + 1)])
+		wavfile.write('wavout/quarter' + str(x) + 'wav', sample_rate, track_subsection)
 	
 	#print samplesPerQuarter*x, samplesPerQuarter*(x + 1)
 	yf = abs(fourier_plot[:plot_length])
@@ -69,9 +79,9 @@ for x in range(0, quarters):
 
 	plt.plot(xf, yf, 'r')
 	plt.title("Quarter " + str(x))
-	midi = normToMidi(numpy.argmax(yf) + 2) # 2 is a temporary magic number
-	print "\t", str(x) + ": " + midiToNote(midi)
+	midi = normToMidi(numpy.argmax(yf)) # 2 is a temporary magic number
+	if midi != lastMidi:
+		lastMidi = midi
+		print "\tNew note at " + str(start_point) + ": " + midiToNote(midi)
 	plt.savefig('imgout/test' + str(x) + '.png')
 	plt.close()
-
-'''function to convert normalized (5.6k) to hz as needed'''
