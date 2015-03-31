@@ -19,7 +19,7 @@ def midiToFreq(midi):
 
 # normalized frequency to Hz
 def normToHz(norm):
-	return norm / (samplesPerQuarter / sample_rate)
+	return norm / (window_length / sample_rate)
 
 # normalized frequency to MIDI
 def normToMidi(norm):
@@ -33,7 +33,8 @@ def midiToNote(midi):
 MAX_FREQ = 3000
 wav_debug = False
 normalize_audio = False
- 
+sample_offset = 1000
+
 
 meiFile = "meiToMidi/salzinnes/mei/CF-028-music.mei"
 stem = 'meiToMidi/cf-028'
@@ -59,29 +60,31 @@ while first_track[audible_length] == -1:
 
 seconds = audible_length / sample_rate
 quarters = int(floor(seconds / tempo)) # quarter notes in the piece
-samplesPerQuarter = floor(audible_length / quarters)
-plot_length = min(samplesPerQuarter / 2, MAX_FREQ)
+window_length = floor(audible_length / quarters)
+num_windows = int(ceil(audible_length / sample_offset))
+
+plot_length = min(window_length / 2, MAX_FREQ)
 
 print "Writing: "
 lastMidi = -1
-for x in range(0, quarters): 
-	start_point = int(samplesPerQuarter*x)
-	end_point = int(samplesPerQuarter*(x + 1))
+for x in range(0, num_windows): 
+	start_point = int(num_windows * x)
+	end_point = min(int(num_windows * x + window_length), len(first_track) - 1)
 	track_subsection = first_track[start_point:end_point]
 	fourier_plot = fft(track_subsection)
 	
 	if wav_debug:
 		wavfile.write('wavout/quarter' + str(x) + 'wav', sample_rate, track_subsection)
 	
-	#print samplesPerQuarter*x, samplesPerQuarter*(x + 1)
+	#print window_length*x, window_length*(x + 1)
 	yf = abs(fourier_plot[:plot_length])
 	xf = numpy.linspace(0.0, plot_length, plot_length)
 
 	plt.plot(xf, yf, 'r')
 	plt.title("Quarter " + str(x))
-	midi = normToMidi(numpy.argmax(yf)) # 2 is a temporary magic number
+	midi = normToMidi(numpy.argmax(yf))
 	if midi != lastMidi:
 		lastMidi = midi
-		print "\tNew note at " + str(start_point) + ": " + midiToNote(midi)
+		print "\tNew note at " + str((end_point - start_point) / 2 + start_point)  + ": " + midiToNote(midi) + " (" + str(x) + ")"
 	plt.savefig('imgout/test' + str(x) + '.png')
 	plt.close()
