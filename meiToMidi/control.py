@@ -5,36 +5,20 @@ from subprocess import call, Popen
 from math import ceil, floor, log
 from scipy.io import wavfile
 from scipy.fftpack import fft
-import matplotlib.pyplot as plt
 import numpy
 import pdb
 
-# freq to midi
-def freqToMidi(f):
-   return int(round(12 * log((f / 440), 2) + 69))
-
-# midi to freq
-def midiToFreq(midi):
-   return 440/32 * 2**((midi - 9) / 12)
-
-# normalized frequency to Hz
-def normToHz(norm):
-	return norm / (window_length / sample_rate)
-
-# normalized frequency to MIDI
-def normToMidi(norm):
-	return freqToMidi(normToHz(norm))
-
-noteArr = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-def midiToNote(midi):
-	return noteArr[midi % 12] + str(int(midi / 12)) 
-
+import midi_fourier
+from s_f_utils import *
 
 MAX_FREQ = 3000
 wav_debug = False
 img_debug = False
 normalize_audio = False
 sample_offset = 1000
+
+if img_debug:
+	import matplotlib.pyplot as plt
 
 print "Loading file."
 #meiFile = "meiToMidi/salzinnes/mei/CF-028-music.mei"
@@ -98,15 +82,17 @@ while start_point < audible_length:
 
 	threshold = (numpy.max(yf) / 2)
 	idx = 0
-	string = "\t"
+	found_midi = []
 	for y in yf:
-		if y > threshold and idx > 0:
-			string += str(normToMidi(idx)) + " "
+		if idx > 0 and y > threshold:
+			ntm = str(normToMidi(idx, window_length, sample_rate))
+			if ntm not in found_midi:
+				found_midi.append(ntm)
 		idx += 1
 
-	print start_point, end_point, string
+	print start_point, end_point, found_midi
 
-	midi = normToMidi(numpy.argmax(yf))
+	midi = normToMidi(numpy.argmax(yf), window_length, sample_rate)
 	if midi != lastMidi:
 		lastMidi = midi
 		print "\tNew note at " + str((end_point - start_point) / 2 + start_point)  + ": " + midiToNote(midi) + " (" + str(count) + ")"
@@ -117,5 +103,5 @@ while start_point < audible_length:
 		plt.savefig('imgout/test' + str(count) + '.png')
 		plt.close()
 
-	start_point = end_point
+	start_point += 1000
 	count += 1
