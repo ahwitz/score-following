@@ -1,3 +1,4 @@
+from __future__ import division
 from music21 import *
 from subprocess import call, Popen
 from scipy.io import wavfile
@@ -16,7 +17,7 @@ img_debug = False
 if img_debug:
 	import matplotlib.pyplot as plt
 
-def transform_instrument(program_number):
+def transformInstrument(program_number):
 	tempdir = "tempdir/"
 
 	if os.path.isdir(tempdir):
@@ -32,12 +33,13 @@ def transform_instrument(program_number):
 	temp_stream.append(instrument.instrumentFromMidiProgram(program_number))
 	print "Generating JSON for MIDI program number", str(program_number) + "."
 	for cur_pitch in range(12, 125):
+		# print "Plotting for", cur_pitch
 		# prep variables for file locations
 		midi_location = tempdir + str(cur_pitch) + '.midi'
 		wav_location = tempdir + str(cur_pitch) + '.wav'
 
 		# make a music21 stream with one note in it, write to midi
-		temp_stream.append(note.Note(cur_pitch, type='half'))
+		temp_stream.append(note.Note(cur_pitch, type='quarter'))
 		temp_stream.write('midi', midi_location)
 
 		# convert the midi to wav using timidity
@@ -47,7 +49,8 @@ def transform_instrument(program_number):
 
 		# load the temp wav file in 
 		sample_rate, data = wavfile.read(wav_location)
-		first_track = [(f / 2**16.) for f in data.T[0]] # normalized
+		first_track = data.T[0][:44100]
+		# first_track = [(f / 2**16.) for f in data.T[0]] # normalized
 		audible_length = len(first_track)
 		seconds = audible_length / sample_rate
 
@@ -57,7 +60,7 @@ def transform_instrument(program_number):
 		idx = 0
 		hz_threshold = midiToFreq(cur_pitch) * 10
 		for y in fourier_data[:10000]:
-			cur_hz = normToHz(idx, seconds)
+			cur_hz = int(normToHz(idx, seconds))
 			if cur_hz > hz_threshold: # if the current hz is greater than 10 times the original note, cut it off
 				break
 			if cur_hz in plotted:
@@ -69,14 +72,14 @@ def transform_instrument(program_number):
 
 		for x in plotted:
 			arr = plotted[x]
-			plotted[x] = str(sum(arr) / len(arr))[:7] # average rounded to 5 decimal places
+			plotted[x] = str(int(sum(arr) / len(arr))) # average rounded to int
 
 		inst_data[cur_pitch] = plotted
 
 		if img_debug:
-			xf = numpy.linspace(0.0, audible_length / 2, audible_length / 2)
-			plt.plot(xf, fourier_data[:len(fourier_data) / 2], 'r')
-			plt.title("Quarter " + str(cur_pitch))
+			xf = numpy.linspace(0.0, audible_length / 2, audible_length / 2)[:2000]
+			plt.plot(xf, fourier_data[:2000], 'r')
+			plt.title("Quarterasd " + str(cur_pitch))
 			plt.savefig(tempdir + 'test' + str(cur_pitch) + '.png')
 			plt.close()
 
@@ -91,6 +94,17 @@ def transform_instrument(program_number):
 	    json.dump(inst_data, outfile)
 
 
+# returns the file or False if file doesn't exist
+def loadInstrument(program_number):
+	filename = 'instrument_data/instrument-' + str(program_number) + '.json'
+	if not os.path.isfile(filename):
+		return False
+
+	json_file = open('instrument_data/instrument-' + str(program_number) + '.json', 'r')
+	json_dict = json.load(json_file)
+	return json_dict
+
+
 if __name__ == "__main__":
 	print "You're running this directly."
-	transform_instrument(0)
+	transformInstrument(0)

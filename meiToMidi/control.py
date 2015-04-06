@@ -8,14 +8,14 @@ from scipy.fftpack import fft
 import numpy
 import pdb
 
-import midi_fourier
+from midi_fourier import *
 from s_f_utils import *
 
-MAX_FREQ = 3000
+MAX_FREQ = 300000000
+SAMPLE_OFFSET = 10000
 wav_debug = False
-img_debug = False
+img_debug = True
 normalize_audio = False
-sample_offset = 1000
 
 if img_debug:
 	import matplotlib.pyplot as plt
@@ -23,8 +23,8 @@ if img_debug:
 print "Loading file."
 #meiFile = "meiToMidi/salzinnes/mei/CF-028-music.mei"
 #stem = 'meiToMidi/cf-028'
-meiFile = "meiToMidi/salzinnes/mei/two-voice.mei"
-stem = 'meiToMidi/two-voice'
+meiFile = "salzinnes/mei/two-voice.mei"
+stem = 'two-voice'
 
 p = converter.parseFile(meiFile, None, 'mei', True)
 # tempos = [z.secondsPerQuarter() for x, y, z in p.metronomeMarkBoundaries()]
@@ -51,11 +51,9 @@ print audible_length, len(first_track)
 
 seconds = audible_length / sample_rate
 quarters = int(floor(seconds / tempo)) # quarter notes in the piece
-window_length = floor(audible_length / quarters)
+window_length = sample_rate # floor(audible_length / quarters)
 window_seconds = window_length / sample_rate
-num_windows = int(ceil(audible_length / sample_offset))
-
-print num_windows
+num_windows = int(ceil(audible_length / SAMPLE_OFFSET))
 
 plot_length = min(window_length / 2, MAX_FREQ)
 
@@ -64,8 +62,6 @@ lastMidi = -1
 start_point = 0
 count = 0
 while start_point < audible_length: 
-	#start_point = int(num_windows * x)
-	#end_point = min(int(num_windows * x + window_length), len(first_track) - 1)
 	end_point = start_point + window_length
 
 	if end_point > audible_length:
@@ -81,12 +77,27 @@ while start_point < audible_length:
 	yf = abs(fourier_plot[:plot_length])
 	xf = numpy.linspace(0.0, plot_length, plot_length)
 
-	threshold = (numpy.max(yf) / 2)
+	hz_plot = [None] * int(ceil(normToHz(plot_length, window_seconds)))
+	idx = 0
+	for y in yf:
+		hz = int(normToHz(idx, window_seconds))
+		if hz_plot[hz] == None:
+			hz_plot[hz] = [y]
+		else:
+			hz_plot[hz].append(y)
+		idx += 1
+
+	#pdb.set_trace()
+
+	idx = 0
+	hz_plot = [sum(arr) / len(arr) for arr in hz_plot]
+
+	amp_threshold = (numpy.max(yf) / 2)
 	idx = 0
 	found_midi = []
-	for y in yf:
-		if idx > 0 and y > threshold:
-			ntm = str(normToMidi(idx, window_seconds))
+	for amp in hz_plot:
+		if idx > 0 and amp > amp_threshold:
+			ntm = str(freqToMidi(idx))
 			if ntm not in found_midi:
 				found_midi.append(ntm)
 		idx += 1
@@ -99,10 +110,10 @@ while start_point < audible_length:
 		print "\tNew note at " + str((end_point - start_point) / 2 + start_point)  + ": " + midiToNote(midi) + " (" + str(count) + ")"
 
 	if img_debug:
-		plt.plot(xf, yf, 'r')
+		plt.plot(xf, hz_plot, 'r')
 		plt.title("Quarter " + str(count))
 		plt.savefig('imgout/test' + str(count) + '.png')
 		plt.close()
 
-	start_point += 1000
+	start_point += SAMPLE_OFFSET
 	count += 1
