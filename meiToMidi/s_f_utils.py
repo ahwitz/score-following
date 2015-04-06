@@ -1,4 +1,4 @@
-
+from __future__ import division
 from math import log
 
 # freq to midi
@@ -20,3 +20,4 @@ def normToMidi(norm, seconds):
 noteArr = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 def midiToNote(midi):
 	return noteArr[midi % 12] + str(int(midi / 12)) 
+
