@@ -52,6 +52,7 @@ print audible_length, len(first_track)
 seconds = audible_length / sample_rate
 quarters = int(floor(seconds / tempo)) # quarter notes in the piece
 window_length = floor(audible_length / quarters)
+window_seconds = window_length / sample_rate
 num_windows = int(ceil(audible_length / sample_offset))
 
 print num_windows
@@ -85,14 +86,14 @@ while start_point < audible_length:
 	found_midi = []
 	for y in yf:
 		if idx > 0 and y > threshold:
-			ntm = str(normToMidi(idx, window_length, sample_rate))
+			ntm = str(normToMidi(idx, window_seconds))
 			if ntm not in found_midi:
 				found_midi.append(ntm)
 		idx += 1
 
 	print start_point, end_point, found_midi
 
-	midi = normToMidi(numpy.argmax(yf), window_length, sample_rate)
+	midi = normToMidi(numpy.argmax(yf), window_seconds)
 	if midi != lastMidi:
 		lastMidi = midi
 		print "\tNew note at " + str((end_point - start_point) / 2 + start_point)  + ": " + midiToNote(midi) + " (" + str(count) + ")"

@@ -32,13 +32,11 @@ def transform_instrument(program_number):
 	temp_stream.append(instrument.instrumentFromMidiProgram(program_number))
 	print "Generating JSON for MIDI program number", str(program_number) + "."
 	for cur_pitch in range(12, 125):
-		print "Plotting", cur_pitch
 		# prep variables for file locations
 		midi_location = tempdir + str(cur_pitch) + '.midi'
 		wav_location = tempdir + str(cur_pitch) + '.wav'
 
 		# make a music21 stream with one note in it, write to midi
-
 		temp_stream.append(note.Note(cur_pitch, type='half'))
 		temp_stream.write('midi', midi_location)
 
@@ -51,19 +49,21 @@ def transform_instrument(program_number):
 		sample_rate, data = wavfile.read(wav_location)
 		first_track = [(f / 2**16.) for f in data.T[0]] # normalized
 		audible_length = len(first_track)
+		seconds = audible_length / sample_rate
 
 		fourier_data = abs(fft(first_track))
 		plotted = {}
 
 		idx = 0
+		hz_threshold = midiToFreq(cur_pitch) * 10
 		for y in fourier_data[:10000]:
-			hz_amp = normToHz(idx, audible_length, sample_rate)
-			if hz_amp > 12000:
+			cur_hz = normToHz(idx, seconds)
+			if cur_hz > hz_threshold: # if the current hz is greater than 10 times the original note, cut it off
 				break
-			if hz_amp in plotted:
-				plotted[hz_amp].append(y)
+			if cur_hz in plotted:
+				plotted[cur_hz].append(y)
 			else:
-				plotted[hz_amp] = [y]
+				plotted[cur_hz] = [y]
 
 			idx += 1
 
@@ -85,9 +85,9 @@ def transform_instrument(program_number):
 		os.remove(midi_location) # remove the midi file
 		os.remove(wav_location) # same for wav
 
-	os.rmdir(tempdir) #and remove the directory
+	os.rmdir(tempdir) # and remove the directory at the end
 
-	with open('instrument-' + str(program_number) + '.json', 'w') as outfile:
+	with open('instrument_data/instrument-' + str(program_number) + '.json', 'w') as outfile:
 	    json.dump(inst_data, outfile)
 
 

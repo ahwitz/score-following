@@ -1,0 +1,12 @@
+scoreEnv/*
+img_data/*
+thesis_data/*
+imgout/*
+IMSLP_data/*
+music21/*
+*.wav
+*.midi
+*.mei
+*.xml
+*.pyc
+meiToMidi/instrument_data/*.json

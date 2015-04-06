@@ -10,12 +10,12 @@ def midiToFreq(midi):
    return 440/32 * 2**((midi - 9) / 12)
 
 # normalized frequency to Hz
-def normToHz(norm, window_length, sample_rate):
-	return norm / (window_length / sample_rate)
+def normToHz(norm, seconds):
+	return norm / seconds
 
 # normalized frequency to MIDI
-def normToMidi(norm, window_length, sample_rate):
-	return freqToMidi(normToHz(norm, window_length, sample_rate))
+def normToMidi(norm, seconds):
+	return freqToMidi(normToHz(norm, seconds))
 
 noteArr = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 def midiToNote(midi):
