@@ -1,7 +1,7 @@
 scoreEnv/*
 img_data/*
 thesis_data/*
-imgout/*
+imgout/
 IMSLP_data/*
 music21/*
 *.wav

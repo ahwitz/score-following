@@ -14,7 +14,9 @@
         <score xml:id="m-40c5cd2b-79cc-45ba-97ce-ab3d55735dbd">
           <scoreDef xml:id="m-379c1166-075a-40a5-a705-2bda4351a735">
             <staffGrp xml:id="m-3c050551-e68a-403b-ba2d-678098305f8f">
-              <staffDef xml:id="m-b82cb911-ee0b-4bd1-a58f-825189c498a4" n="0"/>
+              <staffDef xml:id="m-b82cb911-ee0b-4bd1-a58f-825189c498a4" n="0">
+                <instrDef midi.channel="4" midi.instrnum="71"/>
+              </staffDef>
             </staffGrp>
           </scoreDef>
           <section xml:id="m-132d56eb-25ef-4507-96df-61c425f720d7">

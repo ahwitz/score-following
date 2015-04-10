@@ -17,13 +17,15 @@ img_debug = False
 if img_debug:
 	import matplotlib.pyplot as plt
 
+
+# Creates a JSON object that can be indexed as: instrument[fundamental][Nth overtone][Hz adjustment]
 def transformInstrument(program_number):
 	tempdir = "tempdir/"
 
 	if os.path.isdir(tempdir):
 		if os.listdir(tempdir) != []:
 			print "tempdir is not empty; aborting"
-			sys.exit(1)
+			#sys.exit(1)
 
 	else:
 		os.mkdir(tempdir)
@@ -49,32 +51,47 @@ def transformInstrument(program_number):
 
 		# load the temp wav file in 
 		sample_rate, data = wavfile.read(wav_location)
-		first_track = data.T[0][:44100]
+		first_track = data.T[0][:sample_rate] #only get one second's worth of audio
 		# first_track = [(f / 2**16.) for f in data.T[0]] # normalized
 		audible_length = len(first_track)
 		seconds = audible_length / sample_rate
 
 		fourier_data = abs(fft(first_track))
-		plotted = {}
+		mean = numpy.mean(fourier_data)
+		#plotted = {}
+
+		inst_data[cur_pitch] = {}
 
 		idx = 0
-		hz_threshold = midiToFreq(cur_pitch) * 10
-		for y in fourier_data[:10000]:
-			cur_hz = int(normToHz(idx, seconds))
-			if cur_hz > hz_threshold: # if the current hz is greater than 10 times the original note, cut it off
-				break
-			if cur_hz in plotted:
-				plotted[cur_hz].append(y)
-			else:
-				plotted[cur_hz] = [y]
+		orig_freq = midiToFreq(cur_pitch)
+		pitch_threshold = 10000
+		for freq_mult in range(1, 5):
+			center_freq = orig_freq * freq_mult
+			freq_mult = str(freq_mult)
+			# plotted[freq_mult] = {}
 
-			idx += 1
+			# cur_hz = int(normToHz(center_freq, seconds))
+			inst_data[cur_pitch][str(freq_mult)] = fourier_data[center_freq] / audible_length
+			print str(freq_mult) + "x: " + str(fourier_data[center_freq])
+			# for freq_adj in range(0, 1):
+			# 	cur_freq = center_freq + freq_adj
+			# 	cur_hz = int(normToHz(cur_freq, seconds))
+			# 	freq_adj = str(freq_adj)
+			# 	if freq_adj in plotted[freq_mult]:
+			# 		plotted[freq_mult][freq_adj].append(fourier_data[cur_freq])
+			# 	else:
+			# 		plotted[freq_mult][freq_adj] = [fourier_data[cur_freq]]
 
-		for x in plotted:
-			arr = plotted[x]
-			plotted[x] = str(int(sum(arr) / len(arr))) # average rounded to int
+			# 	idx += 1
 
-		inst_data[cur_pitch] = plotted
+		# inst_data[cur_pitch] = {}
+		# for overtone in plotted:
+		# 	inst_data[cur_pitch][overtone] = {}
+		# 	for adj in plotted[overtone]:
+		# 		arr = plotted[overtone][adj]
+		# 		inst_data[cur_pitch][overtone][adj] = str(int(sum(arr) / len(arr)) / audible_length)[:7] # average rounded to int, averaged per frame
+
+		# inst_data[cur_pitch] = plotted
 
 		if img_debug:
 			xf = numpy.linspace(0.0, audible_length / 2, audible_length / 2)[:2000]
@@ -107,4 +124,5 @@ def loadInstrument(program_number):
 
 if __name__ == "__main__":
 	print "You're running this directly."
+	transformInstrument(71)
 	transformInstrument(0)
