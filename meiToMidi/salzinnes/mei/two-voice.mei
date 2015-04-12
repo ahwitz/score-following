@@ -22,15 +22,30 @@
           <section xml:id="m-132d56eb-25ef-4507-96df-61c425f720d7">
             <measure n="1" xml:id="m1">
                 <staff xml:id="m-f051cd44-2a2c-4dbb-a4ad-8425fc6f26ab" n="0">
-                  <layer xml:id="m-44a44ad3-af6b-432c-bbce-ae4a03428c1d" n="1">
-                    <note xml:id="m-694728de-d50a-4c9c-ad97-caed8f50e607" pname="g" oct="4" dur="1"/>
-                    <note xml:id="m-694728de-d50a-4c9c-ad97-caed8f50e601" pname="f" oct="4" dur="1"/>
-                  </layer>
-                  <layer xml:id="m-44a44ad3-af6b-432c-bbce-ae4a03428c1d" n="2">
-                    <note xml:id="m-694728de-d50a-4c9c-ad97-caed8f50e602" pname="g" oct="3" dur="1"/>
-                    <note xml:id="m-694728de-d50a-4c9c-ad97-caed8f50e603" pname="f" oct="3" dur="1"/>
+                  <layer xml:id="l3">
+                    <chord xml:id="m-44a44ad3-af6b-432c-bbce-ae4a03428c1d" n="1" dur="2">
+                      <note xml:id="m-694728de-d50a-4c9c-ad97-caed8f50e607" pname="g" oct="4"/>
+                      <note xml:id="m-694728de-d50a-4c9c-ad97-caed8f50e602" pname="g" oct="3"/>
+                    </chord>
+                    <chord xml:id="m-44a44ad3-af6b-432c-bbce-ae4a03428c1d" n="2" dur="2">
+                      <note xml:id="m-694728de-d50a-4c9c-ad97-caed8f50e601" pname="f" oct="4"/>
+                      <note xml:id="m-694728de-d50a-4c9c-ad97-caed8f50e603" pname="f" oct="3"/>
+                    </chord>
                   </layer>
                 </staff>
+            </measure>
+            <measure n="2" xml:id="m2">
+              <staff xml:id="s1" n="0">
+                <layer xml:id="l1">
+                  <note xml:id="n1" pname="g" oct="4" dur="4"/>
+                  <note xml:id="n2" pname="a" oct="4" dur="2"/>
+                  <note xml:id="n3" pname="f" oct="4" dur="4"/>
+                </layer>
+                <layer xml:id="l2">
+                  <note xml:id="n4" pname="g" oct="3" dur="2"/>
+                  <note xml:id="n5" pname="g" oct="3" dur="2"/>
+                </layer>
+              </staff>
             </measure>
           </section>
         </score>

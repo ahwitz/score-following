@@ -31,6 +31,7 @@ instruments = [] # list of MIDI program numbers
 instruments_fft = {} # eventually, fft data archived by midi_fourier.py
 
 parsed = converter.parseFile(meiFile, None, 'mei', True)
+timewise = timewiseMusic21(parsed)
 # tempos = [z.secondsPerQuarter() for x, y, z in p.metronomeMarkBoundaries()] # I think this is when the piece has multiple tempos... I should comment my code better.
 tempo = parsed.metronomeMarkBoundaries()[0][2].secondsPerQuarter() / 4 # in seconds per quarter
 
@@ -108,26 +109,6 @@ while start_point < audible_length:
 		else:
 			hz_plot[idx] = sum(arr) / len(arr)
 			idx += 1
-
-	#pdb.set_trace()
-
-	# identify the peaks
-	# amp_threshold = (numpy.max(yf) / 2)
-	# idx = 0
-	# found_midi = []
-	# print "\n\n\n", int(numpy.median(hz_plot)), int(numpy.mean(hz_plot))
-	# for amp in hz_plot:
-	# 	if idx > 0 and amp > amp_threshold:
-	# 		ntm = freqToMidi(idx)
-	# 		if ntm not in found_midi:
-	# 			found_midi.append(ntm)
-	# 	idx += 1
-
-	# # if the note with greatest amplitude changed, make it known
-	# midi = freqToMidi(numpy.argmax(hz_plot))
-	# if midi != lastMidi:
-	# 	lastMidi = midi
-	# 	print "\tNew note at " + str((end_point - start_point) / 2 + start_point)  + ": " + midiToNote(midi) + " (" + str(count) + ")"
 
 	print "\nFor quarter:", str(count), "(" + str(start_point), "to", str(end_point) + ")"
 
