@@ -24,7 +24,10 @@ noteArr = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 def midiToNote(midi):
 	return noteArr[midi % 12] + str(int(midi / 12)) 
 
+#converts a music21 stream (or at least the one Christopher created during MEI import) to a dictionary of timewise note onsets
 def timewiseMusic21(parsed):
+	tempo = parsed.metronomeMarkBoundaries()[0][2].secondsPerQuarter() # in seconds per quarter
+	print tempo, "tempo"
 	measures = parsed[1]
 	offsets = {}
 	for this_measure in measures:
@@ -32,20 +35,21 @@ def timewiseMusic21(parsed):
 		voices = [x for x in this_measure if isinstance(x, stream.Voice)]
 		for this_voice in voices:
 			for item in this_voice:
-				item_offset = item.offset + measure_offset
 				if isinstance(item, note.Note):
-					if offsets.has_key(item_offset):
-						offsets[item_offset].append(item.pitch.midi)
-					else:
-						offsets[item_offset] = [item.pitch.midi]
+					processNote(item, tempo, measure_offset, offsets)
 				elif isinstance(item, chord.Chord):
 					for this_note in item: 
-						#this can still be item_offset - both notes have same offset as parent chord
-						if offsets.has_key(item_offset):
-							offsets[item_offset].append(this_note.pitch.midi)
-						else:
-							offsets[item_offset] = [this_note.pitch.midi]
+						processNote(this_note, tempo, measure_offset, offsets)
 				elif not isinstance(item, rest.Rest):
 					print "Found an", item
 
-	return offsets
+	return offsets, tempo
+
+def processNote(note_obj, tempo, measure_offset, offsets_ref):
+	note_dur = max(1, note_obj.duration.quarterLength)
+	for cur_offset in range(0, int(note_dur)): #int conversion is OK cause we want to round down 
+		item_offset = (note_obj.offset + measure_offset + (cur_offset)) * tempo
+		if offsets_ref.has_key(item_offset):
+			offsets_ref[item_offset].append(note_obj.pitch.midi)
+		else:
+			offsets_ref[item_offset] = [note_obj.pitch.midi]

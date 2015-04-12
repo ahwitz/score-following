@@ -31,9 +31,9 @@ instruments = [] # list of MIDI program numbers
 instruments_fft = {} # eventually, fft data archived by midi_fourier.py
 
 parsed = converter.parseFile(meiFile, None, 'mei', True)
-timewise = timewiseMusic21(parsed)
+timewise, tempo = timewiseMusic21(parsed)
 # tempos = [z.secondsPerQuarter() for x, y, z in p.metronomeMarkBoundaries()] # I think this is when the piece has multiple tempos... I should comment my code better.
-tempo = parsed.metronomeMarkBoundaries()[0][2].secondsPerQuarter() / 4 # in seconds per quarter
+
 
 # write the midi, convert it to wav using Timidity
 parsed.write('midi', stem + '.midi')
@@ -123,7 +123,7 @@ while start_point < audible_length:
 	#mean = int(numpy.mean(hz_plot))
 	midi_count = 0
 
-	found_hz = []
+	# found_hz = []
 	found_midi = []
 	for x in range(0, 10):
 		# if img_debug:
@@ -135,74 +135,44 @@ while start_point < audible_length:
 		
 		hz_max = numpy.argmax(hz_plot)
 		cur_midi = freqToMidi(hz_max) # get midi of it
-		hz_plot[hz_max] = 0 # flip this to 0 so it's not max anymore
+		#hz_plot[hz_max] = 0 # flip this to 0 so it's not max anymore
 
 		if cur_midi in found_midi:
 			continue # we've already found it.
 
-		found = False
-		for cur_hz in found_hz:
-			#if hz_max is less than cur_hz, it can't be an overtone
-			if hz_max < cur_hz:
-				continue
+		# found_hz.append(hz_max)
+		found_midi.append(cur_midi)
 
-			#get how many multiples away it is
-			overtones = round(hz_max / cur_hz)
+		# found = False
+		# for cur_hz in found_hz:
+		# 	#if hz_max is less than cur_hz, it can't be an overtone
+		# 	if hz_max < cur_hz:
+		# 		continue
 
-			#if it's within a few hz of an overtone, call it
-			if abs((hz_max / overtones) - cur_hz) < 5:
-				found = True
-				break
+		# 	#get how many multiples away it is
+		# 	overtones = round(hz_max / cur_hz)
 
-		if not found:
-			found_hz.append(hz_max)
-			found_midi.append(cur_midi)
+		# 	#if it's within a few hz of an overtone, call it
+		# 	if abs((hz_max / overtones) - cur_hz) < 5:
+		# 		found = True
+		# 		break
+
+		#if found:
+		#pdb.set_trace()
+		for overtone in instruments_fft[71][str(cur_midi)]:
+			overtone_hz = hz_max * int(overtone)
+			# find the max within 10 hz of the expected frequency
+			overtone_hz = numpy.argmax(hz_plot[overtone_hz - 10:overtone_hz + 10])
+			hz_plot[overtone_hz] -= float(instruments_fft[71][str(cur_midi)][overtone]) * window_length
+
+
+		# else:
+		# 	found_hz.append(hz_max)
+		# 	found_midi.append(cur_midi)
 
 	print "\tNotes found:", found_midi
 
-
-	# while mean > median:
-
-	# 	hz_max = numpy.argmax(hz_plot)
-	# 	midi_max = str(freqToMidi(hz_max))
-
-	# 	# subtract the average amplitude for the window length
-	# 	for overtone in instruments_fft[71][midi_max]:
-	# 		hz = hz_max * int(overtone)
-	# 		# for adj, amp in instruments_fft[71][midi_max][overtone].iteritems():
-	# 		# 	adj = int(adj)
-	# 		# 	print "\t", hz + adj, "(" + str(adj) + "):", hz_plot[int(hz) + adj], "down to", hz_plot[int(hz) + adj] - (float(str(amp)) * window_length)
-	# 		# 	hz_plot[int(hz) + adj] -= (float(amp) * window_length)
-	# 		print "\t", hz, "(" + overtone + "):", hz_plot[hz], "down to", hz_plot[hz] - float(instruments_fft[71][midi_max][overtone]) * window_length
-	# 		hz_plot[hz] -= float(instruments_fft[71][midi_max][overtone]) * window_length
-
-
-	# 	if img_debug:
-	# 		xf = numpy.linspace(0.0, plot_length, plot_length)
-	# 		plt.plot(xf[hz_max - 50:hz_max + 50], hz_plot[hz_max - 50:hz_max + 50], 'r')
-	# 		plt.title("Quarter " + str(count))
-	# 		plt.savefig('imgout/test' + str(count) + '-' + str(midi_count) + '.png')
-	# 		plt.close()
-
-	# 	median = int(numpy.median(hz_plot))
-	# 	mean = int(numpy.mean(hz_plot))
-
-	# 	print "\t Found midi note", midi_max, median, mean
-
-	# 	midi_count += 1
-
-		#pdb.set_trace()
-
-	# # restore the original plot
-	# hz_plot = hz_plot_copy
-
-	#print image if desired
-	# if img_debug:
-	# 	xf = numpy.linspace(0.0, plot_length, plot_length)
-	# 	plt.plot(xf[:1000], hz_plot[:1000], 'r')
-	# 	plt.title("Quarter " + str(count))
-	# 	plt.savefig('imgout/test' + str(count) + '-' + str(midi_count) + '.png')
-	# 	plt.close()
-
 	start_point += SAMPLE_OFFSET
 	count += 1
+
+print timewise
