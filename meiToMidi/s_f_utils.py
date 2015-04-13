@@ -24,8 +24,19 @@ class Explanation(Enum):
 	ACCIDENTAL = 4 # one MIDI tone off from something
 	OLDER_NOTE = 5 # if the note was held longer than expected
 	NEWER_NOTE = 6 # if the note started before expected
+	OLDER_OCTAVE_UP = 7 # if it was an overtone on the older note
+	NEWER_OCTAVE_UP = 8 # if it was an overtone on the newer note
+	OLDER_OVERTONE = 9 # if it was an overtone on the older note
+	NEWER_OVERTONE = 10 # if it was an overtone on the newer note
+
+	#TODO: Wrong instrument?
 
 	UNKNOWN = 100 # can not be explained at the given time point
+
+def print_explanation_guide():
+	print "Explanation guide:"
+	for prop in Explanation.__members__:
+		print "\t", prop + ":", Explanation.__members__[prop]
 
 class timewiseMusic21:
 	def __init__(self, parsed):
@@ -46,7 +57,7 @@ class timewiseMusic21:
 						print "Found an unexpected", item
 
 		for offset in offsets.keys():
-			offsets[offset] = timePoint(offsets[offset])
+			offsets[offset] = timePoint(offsets[offset], offset, self)
 
 		self.tempo = tempo
 		self.offsets = offsets
@@ -68,21 +79,11 @@ class timewiseMusic21:
 		# TODO: eventually save alt codes
 		midi_for_code = midi_in
 		alt_midis = []
-		for offset in self.offset_times:
+		for offset in self.offset_times:				
 			if offset >= start_seconds and offset <= end_seconds:
 				code_out, midi_out = self.offsets[offset].explain(midi_in)
-			elif offset < start_seconds:
-				code_out, midi_out = self.offsets[offset].explain(midi_in)
-				if code_out.value == 0:
-					code_out = Explanation.OLDER_NOTE #TODO: nested values such as overtone from the last chord (2 and 5?)
-				else: 
-					continue
-			elif offset > end_seconds:
-				code_out, midi_out = self.offsets[offset].explain(midi_in)
-				if code_out.value == 0:
-					code_out = Explanation.NEWER_NOTE
-				else: 
-					continue
+			else:
+				continue
 
 			# if we found a lower code, replace it and reset alt midis
 			if code_out.value < code.value:
@@ -104,9 +105,12 @@ class timewiseMusic21:
 
 
 class timePoint:
-	def __init__(self, noteList):
-		self.notes = noteList
-		self.midis = [note.midi for note in noteList]
+	def __init__(self, note_list, offset, timewise_ref):
+		self.notes = note_list
+		self.midis = {note.midi: note for note in note_list}
+		self.offset = offset
+		self.timewise_ref = timewise_ref
+		#TODO : ref to parent timewise so the newer/older Explanations can come from here instead of timewise
 
 	def __repr__(self):
 		return self.__str__()
@@ -118,11 +122,11 @@ class timePoint:
 	def explain(self, midi):
 		# first, if the note is present, we've found it
 		if midi in self.midis:
-			return Explanation.PRESENT, midi
+			return self.register_second(Explanation.PRESENT, midi, self.offset)
 
 		# else if it's the first octave overtone of something
 		if (midi - 12) in self.midis:
-			return Explanation.OCTAVE_UP, midi - 12
+			return self.register_second(Explanation.OCTAVE_UP, midi - 12, self.offset)
 
 		# else if it's another overtone
 		hz = midiToFreq(midi)
@@ -130,19 +134,50 @@ class timePoint:
 			if (hz % midiToFreq(this_midi)) == 0:
 				#TODO: is overtone of multiple? Higher-weighted or necessary at all?
 				#TODO: call in instrument_fft data to see how likely it is
-				return Explanation.OVERTONE, this_midi
+				return self.register_second(Explanation.OVERTONE, this_midi, self.offset)
 
 		# see if it's an octave below something? TODO: would this ever happen?
 		if (midi + 12) in self.midis:
-			return Explanation.OCTAVE_DOWN, midi + 12
+			return self.register_second(Explanation.OCTAVE_DOWN, midi + 12, self.offset)
 
 		# see if there was an accidental error
 		if (midi + 1) in self.midis:
-			return Explanation.ACCIDENTAL, midi + 1
+			return self.register_second(Explanation.ACCIDENTAL, midi + 1, self.offset)
 		if (midi - 1) in self.midis:
-			return Explanation.ACCIDENTAL, midi - 1
+			return self.register_second(Explanation.ACCIDENTAL, midi - 1, self.offset)
+
+		idx = self.timewise_ref.offset_times.index(self.offset) - 1
+		last_timepoint = self.timewise_ref.offsets[self.timewise_ref.offset_times[idx]]
+		last_code, last_midi = last_timepoint.rec_explain(midi, self.offset)
+
+		if last_code.value < Explanation.UNKNOWN.value:
+			return last_code, last_midi
 
 		return Explanation.UNKNOWN, None
+
+	def rec_explain(self, midi, offset):
+		if midi in self.midis:
+			return self.register_second(Explanation.PRESENT, midi, offset)
+
+		# else if it's the first octave overtone of something
+		if (midi - 12) in self.midis:
+			return self.register_second(Explanation.OCTAVE_UP, midi - 12, offset)
+
+		# else if it's another overtone
+		hz = midiToFreq(midi)
+		for this_midi in self.midis:
+			if (hz % midiToFreq(this_midi)) == 0:
+				#TODO: is overtone of multiple? Higher-weighted or necessary at all?
+				#TODO: call in instrument_fft data to see how likely it is
+				return self.register_second(Explanation.OVERTONE, this_midi, offset)
+
+		return Explanation.UNKNOWN, None
+
+
+	# tells a note that it was accounted for in a particular second
+	def register_second(self, explanation, midi, offset):
+		self.midis[midi].seconds[int(offset)] = True
+		return explanation, midi
 
 
 class sfNote:
@@ -150,15 +185,15 @@ class sfNote:
 		self.midi = midi
 		self.duration = duration
 		self.offset = offset
-		# self.beats will be an array of every 
+		# self.seconds is an array of all seconds that the note sounds in - we want string rounded because 1.2 to 3.9 will still be 1, 2, and 3
 		self.seconds = {x: None for x in range(int(offset), int(offset + duration) + 1)}
-		print self.seconds
-
+		
 	def __repr__(self):
 		return self.__str__()
 
 	def __str__(self):
-		return "Note " + str(self.midi) + " (" + str(self.offset) + " + " + str(self.duration) + ")"
+		return "Note " + str(self.midi) + " (" + string.join([str(x) + ": " + str(y) for x, y in self.seconds.iteritems()], " ") + ")"
+		#return "Note " + str(self.midi) + " (" + str(self.offset) + " + " + str(self.duration) + ")"
 
 
 # freq to midi

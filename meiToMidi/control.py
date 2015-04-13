@@ -187,6 +187,7 @@ while start_point < audible_length:
 	start_point += sample_offset
 	count += 1
 
+print_explanation_guide()
 print "Detected:"
 pp.pprint(sorted(events.items(), key=operator.itemgetter(0)))
 print "Expected:"
