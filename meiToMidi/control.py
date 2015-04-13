@@ -1,18 +1,25 @@
+# python native imports
 from __future__ import division
-from music21 import *
 from subprocess import call, Popen
-
+import operator
 from math import ceil, floor, log
+
+# downloaded imports
+from music21 import *
+import numpy
 from scipy.io import wavfile
 from scipy.fftpack import fft
-import numpy
-import pdb
 
+# my code
 from midi_fourier import *
 from s_f_utils import *
 
+# debugging
+import pprint
+import pdb
+
 MAX_FREQ = 300000000
-SAMPLE_OFFSET = 10000
+SMOOTH_DISTANCE = 5
 wav_debug = False
 img_debug = True
 
@@ -24,6 +31,7 @@ print "Loading file."
 #stem = 'meiToMidi/cf-028'
 meiFile = "salzinnes/mei/two-voice.mei"
 stem = 'two-voice'
+pp = pprint.PrettyPrinter(indent=4)
 
 # data to pull in from music21
 tempo = 0
@@ -62,32 +70,30 @@ while first_track[audible_length] == -1:
 seconds = audible_length / sample_rate
 # quarters = int(floor(seconds / tempo)) # quarter notes in the piece, only used for window_length
 window_length = sample_rate # floor(audible_length / quarters)
+sample_offset = int(floor(audible_length / (seconds / tempo)))
 plot_length = min(window_length / 2, MAX_FREQ) # window_length/2 because the fourier plot is mirrored
 window_seconds = window_length / sample_rate 
-num_windows = int(ceil(audible_length / SAMPLE_OFFSET))
 
+# pp.pprint(sorted(timewise.items(), key=operator.itemgetter(0)))
 print "Writing with", window_length, "frame window size: "
 lastMidi = -1
 start_point = 0
 count = 0
+events = {}
 while start_point < audible_length: 
 	# start_point is bumped up at the end of this loop
 	end_point = start_point + window_length
-
-	# just in case
-	if end_point > audible_length:
+	if end_point > audible_length: 	# just in case
 		break
 
 	# get the fourier transform of this window
 	track_subsection = first_track[start_point:end_point]
 	fourier_plot = fft(track_subsection)
+	yf = abs(fourier_plot[:plot_length])
 	
 	# print debug wavs if desired
 	if wav_debug:
 		wavfile.write('wavout/quarter' + str(count) + 'wav', sample_rate, track_subsection)
-	
-	# what we're actually doing calculations on
-	yf = abs(fourier_plot[:plot_length])
 
 	# move everything from normalized frequency to Hz
 	hz_plot = [None] * int(ceil(normToHz(plot_length, window_seconds)))
@@ -126,12 +132,6 @@ while start_point < audible_length:
 	# found_hz = []
 	found_midi = []
 	for x in range(0, 10):
-		# if img_debug:
-		# 	xf = numpy.linspace(0.0, plot_length, plot_length)
-		# 	plt.plot(xf[:1500], hz_plot[:1500], 'r')
-		# 	plt.title("Quarter " + str(x))
-		# 	plt.savefig('imgout/test' + str(x) + '.png')
-		# 	plt.close()
 		
 		hz_max = numpy.argmax(hz_plot)
 		cur_midi = freqToMidi(hz_max) # get midi of it
@@ -140,31 +140,31 @@ while start_point < audible_length:
 		if cur_midi in found_midi:
 			continue # we've already found it.
 
-		# found_hz.append(hz_max)
 		found_midi.append(cur_midi)
 
-		# found = False
-		# for cur_hz in found_hz:
-		# 	#if hz_max is less than cur_hz, it can't be an overtone
-		# 	if hz_max < cur_hz:
-		# 		continue
-
-		# 	#get how many multiples away it is
-		# 	overtones = round(hz_max / cur_hz)
-
-		# 	#if it's within a few hz of an overtone, call it
-		# 	if abs((hz_max / overtones) - cur_hz) < 5:
-		# 		found = True
-		# 		break
-
-		#if found:
-		#pdb.set_trace()
 		for overtone in instruments_fft[71][str(cur_midi)]:
 			overtone_hz = hz_max * int(overtone)
 			# find the max within 10 hz of the expected frequency
-			overtone_hz = numpy.argmax(hz_plot[overtone_hz - 10:overtone_hz + 10])
+			local_max = numpy.argmax(hz_plot[overtone_hz - 10:overtone_hz + 10])
+			overtone_hz = overtone_hz - 10 + local_max
 			hz_plot[overtone_hz] -= float(instruments_fft[71][str(cur_midi)][overtone]) * window_length
+			
+			orig_lower = hz_plot[overtone_hz - SMOOTH_DISTANCE]
+			inc_lower = (hz_plot[overtone_hz] - orig_lower) / SMOOTH_DISTANCE
+			for adj in range(0, SMOOTH_DISTANCE + 1):
+				hz_plot[overtone_hz + (adj - SMOOTH_DISTANCE)] = orig_lower + (adj * inc_lower)
 
+			orig_upper = hz_plot[overtone_hz + SMOOTH_DISTANCE]
+			inc_upper = (hz_plot[overtone_hz] - orig_upper) / SMOOTH_DISTANCE
+			for adj in range(0, SMOOTH_DISTANCE + 1): # from -5 to 1
+				hz_plot[overtone_hz + adj] = orig_lower + ((SMOOTH_DISTANCE - adj) * inc_lower)
+
+		if img_debug:
+			xf = numpy.linspace(0.0, plot_length, plot_length)
+			plt.plot(xf[:1500], hz_plot[:1500], 'r')
+			plt.title("Quarter " + str(x))
+			plt.savefig('imgout/test' + str(count) + "-" + str(x) + '.png')
+			plt.close()
 
 		# else:
 		# 	found_hz.append(hz_max)
@@ -172,7 +172,12 @@ while start_point < audible_length:
 
 	print "\tNotes found:", found_midi
 
-	start_point += SAMPLE_OFFSET
+	events[start_point / sample_rate] = found_midi
+
+	start_point += sample_offset
 	count += 1
 
-print timewise
+print "Detected:"
+pp.pprint(sorted(events.items(), key=operator.itemgetter(0)))
+print "Expected:"
+pp.pprint(sorted(timewise.items(), key=operator.itemgetter(0)))

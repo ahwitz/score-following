@@ -4,6 +4,12 @@ from music21 import *
 
 import pdb
 
+class sfNote:
+	def __init__(self, midi, duration):
+		self.midi = midi
+		self.duration = duration
+
+
 # freq to midi
 def freqToMidi(f):
    return int(round(12 * log((f / 440), 2) + 69))
@@ -27,7 +33,6 @@ def midiToNote(midi):
 #converts a music21 stream (or at least the one Christopher created during MEI import) to a dictionary of timewise note onsets
 def timewiseMusic21(parsed):
 	tempo = parsed.metronomeMarkBoundaries()[0][2].secondsPerQuarter() # in seconds per quarter
-	print tempo, "tempo"
 	measures = parsed[1]
 	offsets = {}
 	for this_measure in measures:
@@ -41,15 +46,16 @@ def timewiseMusic21(parsed):
 					for this_note in item: 
 						processNote(this_note, tempo, measure_offset, offsets)
 				elif not isinstance(item, rest.Rest):
-					print "Found an", item
+					print "Found an unexpected", item
 
 	return offsets, tempo
 
-def processNote(note_obj, tempo, measure_offset, offsets_ref):
-	note_dur = max(1, note_obj.duration.quarterLength)
+def processNote(note_ref, tempo, measure_offset, offsets_ref):
+	note_dur = max(1, note_ref.duration.quarterLength)
+	note_obj = sfNote(note_ref.pitch.midi, note_dur)
 	for cur_offset in range(0, int(note_dur)): #int conversion is OK cause we want to round down 
-		item_offset = (note_obj.offset + measure_offset + (cur_offset)) * tempo
+		item_offset = (note_ref.offset + measure_offset + (cur_offset)) * tempo
 		if offsets_ref.has_key(item_offset):
-			offsets_ref[item_offset].append(note_obj.pitch.midi)
+			offsets_ref[item_offset].append(note_obj)
 		else:
-			offsets_ref[item_offset] = [note_obj.pitch.midi]
+			offsets_ref[item_offset] = [note_obj]

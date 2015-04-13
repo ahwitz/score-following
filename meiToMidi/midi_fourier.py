@@ -63,7 +63,7 @@ def transformInstrument(program_number):
 		inst_data[cur_pitch] = {}
 
 		idx = 0
-		orig_freq = midiToFreq(cur_pitch)
+		orig_freq = round(midiToFreq(cur_pitch))
 		pitch_threshold = 10000
 		for freq_mult in range(1, 5):
 			center_freq = orig_freq * freq_mult
@@ -72,7 +72,6 @@ def transformInstrument(program_number):
 
 			# cur_hz = int(normToHz(center_freq, seconds))
 			inst_data[cur_pitch][str(freq_mult)] = fourier_data[center_freq] / audible_length
-			print str(freq_mult) + "x: " + str(fourier_data[center_freq])
 			# for freq_adj in range(0, 1):
 			# 	cur_freq = center_freq + freq_adj
 			# 	cur_hz = int(normToHz(cur_freq, seconds))
@@ -96,7 +95,7 @@ def transformInstrument(program_number):
 		if img_debug:
 			xf = numpy.linspace(0.0, audible_length / 2, audible_length / 2)[:2000]
 			plt.plot(xf, fourier_data[:2000], 'r')
-			plt.title("Quarterasd " + str(cur_pitch))
+			plt.title("Quarter " + str(cur_pitch))
 			plt.savefig(tempdir + 'test' + str(cur_pitch) + '.png')
 			plt.close()
 
