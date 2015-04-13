@@ -29,8 +29,8 @@ if img_debug:
 print "Loading file."
 #meiFile = "meiToMidi/salzinnes/mei/CF-028-music.mei"
 #stem = 'meiToMidi/cf-028'
-meiFile = "salzinnes/mei/two-voice.mei"
-stem = 'two-voice'
+meiFile = "salz-test-out.mei"
+stem = 'salz-test-out'
 pp = pprint.PrettyPrinter(indent=4)
 
 # data to pull in from music21

@@ -53,7 +53,7 @@ class timewiseMusic21:
 					elif isinstance(item, chord.Chord):
 						for this_note in item: 
 							self.processNote(this_note, tempo, measure_offset, offsets)
-					elif not isinstance(item, rest.Rest):
+					elif not isinstance(item, note.Rest):
 						print "Found an unexpected", item
 
 		for offset in offsets.keys():
