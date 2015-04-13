@@ -1,13 +1,23 @@
 from __future__ import division
-from math import log
+from math import log, ceil
 from music21 import *
 
 import pdb
 
 class sfNote:
-	def __init__(self, midi, duration):
+	def __init__(self, midi, duration, offset):
 		self.midi = midi
 		self.duration = duration
+		self.offset = offset
+		# self.beats will be an array of every 
+		self.seconds = {x: None for x in range(int(offset), int(offset + duration) + 1)}
+		print self.seconds
+
+	def __repr__(self):
+		return self.__str__()
+
+	def __str__(self):
+		return "Note " + str(self.midi) + " (" + str(self.offset) + " + " + str(self.duration) + ")"
 
 
 # freq to midi
@@ -51,11 +61,12 @@ def timewiseMusic21(parsed):
 	return offsets, tempo
 
 def processNote(note_ref, tempo, measure_offset, offsets_ref):
-	note_dur = max(1, note_ref.duration.quarterLength)
-	note_obj = sfNote(note_ref.pitch.midi, note_dur)
-	for cur_offset in range(0, int(note_dur)): #int conversion is OK cause we want to round down 
-		item_offset = (note_ref.offset + measure_offset + (cur_offset)) * tempo
-		if offsets_ref.has_key(item_offset):
-			offsets_ref[item_offset].append(note_obj)
-		else:
-			offsets_ref[item_offset] = [note_obj]
+	note_dur = max(1.0, note_ref.duration.quarterLength) * tempo
+	item_offset = (note_ref.offset + measure_offset) * tempo
+	note_obj = sfNote(note_ref.pitch.midi, note_dur, item_offset)
+
+	#for cur_offset in range(0, int(note_dur)): #int conversion is OK cause we want to round down 
+	if offsets_ref.has_key(item_offset):
+		offsets_ref[item_offset].append(note_obj)
+	else:
+		offsets_ref[item_offset] = [note_obj]

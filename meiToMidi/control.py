@@ -21,7 +21,7 @@ import pdb
 MAX_FREQ = 300000000
 SMOOTH_DISTANCE = 5
 wav_debug = False
-img_debug = True
+img_debug = False
 
 if img_debug:
 	import matplotlib.pyplot as plt
@@ -116,7 +116,7 @@ while start_point < audible_length:
 			hz_plot[idx] = sum(arr) / len(arr)
 			idx += 1
 
-	print "\nFor quarter:", str(count), "(" + str(start_point), "to", str(end_point) + ")"
+	print "\nFor quarter:", str(count), "(" + str(start_point / sample_rate), "to", str(end_point / sample_rate) + ")"
 
 	if img_debug:
 		xf = numpy.linspace(0.0, plot_length, plot_length)

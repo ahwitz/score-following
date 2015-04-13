@@ -36,13 +36,13 @@
             <measure n="2" xml:id="m2">
               <staff xml:id="s1" n="0">
                 <layer xml:id="l1">
-                  <note xml:id="n6" pname="f" oct="4" dur="4"/>
-                  <note xml:id="n7" pname="e" oct="4" dur="2"/>
-                  <note xml:id="n8" pname="d" oct="4" dur="4"/>
+                  <note xml:id="n6" pname="d" oct="4" dur="4"/>
+                  <note xml:id="n7" pname="c" oct="4" dur="2"/>
+                  <note xml:id="n8" pname="b" oct="3" dur="4"/>
                 </layer>
                 <layer xml:id="l2">
-                  <note xml:id="n9" pname="d" oct="4" dur="2"/>
-                  <note xml:id="n10" pname="c" oct="4" dur="2"/>
+                  <note xml:id="n9" pname="b" oct="3" dur="2"/>
+                  <note xml:id="n10" pname="a" oct="3" dur="2"/>
                 </layer>
               </staff>
             </measure>
