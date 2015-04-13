@@ -21,7 +21,7 @@
           </scoreDef>
           <section xml:id="m-132d56eb-25ef-4507-96df-61c425f720d7">
             <measure n="1" xml:id="m1">
-                <staff xml:id="m-f051cd44-2a2c-4dbb-a4ad-8425fc6f26ab" n="0">
+              <staff xml:id="m-f051cd44-2a2c-4dbb-a4ad-8425fc6f26ab" n="0">
                 <layer xml:id="l1">
                   <note xml:id="n1" pname="b" oct="4" dur="4"/>
                   <note xml:id="n2" pname="a" oct="4" dur="2"/>
@@ -31,7 +31,7 @@
                   <note xml:id="n4" pname="g" oct="4" dur="2"/>
                   <note xml:id="n5" pname="f" oct="4" dur="2"/>
                 </layer>
-                </staff>
+              </staff>
             </measure>
             <measure n="2" xml:id="m2">
               <staff xml:id="s1" n="0">

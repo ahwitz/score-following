@@ -39,7 +39,8 @@ instruments = [] # list of MIDI program numbers
 instruments_fft = {} # eventually, fft data archived by midi_fourier.py
 
 parsed = converter.parseFile(meiFile, None, 'mei', True)
-timewise, tempo = timewiseMusic21(parsed)
+timewise = timewiseMusic21(parsed)
+tempo = timewise.tempo
 # tempos = [z.secondsPerQuarter() for x, y, z in p.metronomeMarkBoundaries()] # I think this is when the piece has multiple tempos... I should comment my code better.
 
 
@@ -86,6 +87,9 @@ while start_point < audible_length:
 	if end_point > audible_length: 	# just in case
 		break
 
+	start_seconds = start_point / sample_rate
+	end_seconds = end_point / sample_rate
+
 	# get the fourier transform of this window
 	track_subsection = first_track[start_point:end_point]
 	fourier_plot = fft(track_subsection)
@@ -116,7 +120,7 @@ while start_point < audible_length:
 			hz_plot[idx] = sum(arr) / len(arr)
 			idx += 1
 
-	print "\nFor quarter:", str(count), "(" + str(start_point / sample_rate), "to", str(end_point / sample_rate) + ")"
+	print "\nFor quarter:", str(count), "(" + str(start_seconds), "to", str(end_seconds) + ")"
 
 	if img_debug:
 		xf = numpy.linspace(0.0, plot_length, plot_length)
@@ -130,17 +134,23 @@ while start_point < audible_length:
 	midi_count = 0
 
 	# found_hz = []
-	found_midi = []
+	found_midi = {}
 	for x in range(0, 10):
-		
 		hz_max = numpy.argmax(hz_plot)
-		cur_midi = freqToMidi(hz_max) # get midi of it
+		max_midi = freqToMidi(hz_max) # get midi of it
 		#hz_plot[hz_max] = 0 # flip this to 0 so it's not max anymore
 
+		code, cur_midi = timewise.explain(max_midi, start_seconds, end_seconds)
+
+		if code == Explanation.UNKNOWN:
+			cur_midi = max_midi
+
 		if cur_midi in found_midi:
+			if code.value < found_midi[cur_midi].value:
+				found_midi[cur_midi] = code
 			continue # we've already found it.
 
-		found_midi.append(cur_midi)
+		found_midi[cur_midi] = code
 
 		for overtone in instruments_fft[71][str(cur_midi)]:
 			overtone_hz = hz_max * int(overtone)
@@ -180,4 +190,4 @@ while start_point < audible_length:
 print "Detected:"
 pp.pprint(sorted(events.items(), key=operator.itemgetter(0)))
 print "Expected:"
-pp.pprint(sorted(timewise.items(), key=operator.itemgetter(0)))
+pp.pprint(timewise.offsets)
