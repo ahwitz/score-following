@@ -17,14 +17,6 @@ def appendNewElement(parent, elementType):
     return new_element
 
 with open("salz-test.mei", "r") as f:
-    # elements we will need later:
-    surface = ""
-    original_layer = ""
-    original_mdiv = ""
-    pb = ""
-    systems = []
-    laidOutElements = []
-
     # make it look decent
     parser = etree.XMLParser(remove_blank_text=True)
     tree = etree.parse(f, parser)
