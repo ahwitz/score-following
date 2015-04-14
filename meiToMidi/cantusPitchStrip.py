@@ -42,6 +42,7 @@ with open("salz-test.mei", "r") as f:
     			for note in nc.findall("{http://www.music-encoding.org/ns/mei}note"):
     				layer.append(note)
     				note.attrib["dur"] = "1"
+    				note.attrib["facs"] = obj.attrib["facs"]
     	else:
     		layer.append(obj)
 

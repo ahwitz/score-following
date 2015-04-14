@@ -1,63 +1,13 @@
-var lut = []; for (var i=0; i<256; i++) { lut[i] = (i<16?'0':'')+(i).toString(16); }
-function genUUID()
-{
-    var d0 = Math.random()*0xffffffff|0;
-    var d1 = Math.random()*0xffffffff|0;
-    var d2 = Math.random()*0xffffffff|0;
-    var d3 = Math.random()*0xffffffff|0;
-    return 'm-' + lut[d0&0xff]+lut[d0>>8&0xff]+lut[d0>>16&0xff]+lut[d0>>24&0xff]+'-'+
-    lut[d1&0xff]+lut[d1>>8&0xff]+'-'+lut[d1>>16&0x0f|0x40]+lut[d1>>24&0xff]+'-'+
-    lut[d2&0x3f|0x80]+lut[d2>>8&0xff]+'-'+lut[d2>>16&0xff]+lut[d2>>24&0xff]+
-    lut[d3&0xff]+lut[d3>>8&0xff]+lut[d3>>16&0xff]+lut[d3>>24&0xff];
-}
-
-String.prototype.endsWith = function(suffix) {
-    return this.indexOf(suffix, this.length - suffix.length) !== -1;
-};
-
-function parseXMLLine(text)
-{
-    var splits = text.split(" ");
-    var returnDict = {};
-    var returnDictKey;
-    for (var idx in splits)
-    {
-        curSplit = splits[idx];
-
-        if(!curSplit || curSplit == " ") continue; //just a blank space
-
-        if(curSplit.match(/\/>/g)) //strip off the last two characters of single-line elements
-        {
-            curSplit = curSplit.slice(0, -2);
-        }
-        else if(curSplit.match(/>/g)) //strip last character off multi-line elements
-        {
-            curSplit = curSplit.slice(0, -1);
-        }
-
-        if (curSplit.match(/</g)) //if it's the first one, initialize the dict
-        {
-            returnDictKey = curSplit.substring(1);
-            returnDict[returnDictKey] = {};
-        }
-
-        else //add to the dict
-        {
-            var kv = curSplit.split("=");
-            returnDict[returnDictKey][kv[0]] = kv[1].slice(1, -1); 
-        }
-    }
-    return returnDict;
-}
-
 var initTop, initLeft;
 var pageRef;
 
 var facsPoints = {}; //stores zone to when info
-var facsDict = {}; //stores solely zone info
+var facsTimes = []; //stores times as ints
+var facsIntToString = {}; //dict to change facsTimes to facsPoints keys
 var pageRefs = [];
 var highlightMode = false;
 var highlightInterval;
+var nextFacsTimeIdx = 0;
 
 function initializeMEI()
 {    
@@ -142,55 +92,73 @@ function regenerateFacsPoints()
 {
     var onUpdate = function(facsDict)
     {
-        var linesArr = pageRef.session.doc.getAllLines();
-        var minPage = divaData.getNumberOfPages();
         facsPoints = {};
-        var curPoint;
-        var midXPoint = $("#diva").width() / 2;
-        var midYPoint = $("#diva").height() / 2;
 
-        for (var line in linesArr)
+        var pageTitles = meiEditor.getLinkedPageTitles();
+        var divaIndexes = Object.keys(pageTitles);
+        var idx = divaIndexes.length;
+
+        //create facsPoints, a dict of {timestamp string: [highlightID1, highlightID2...]}
+        while(idx--)
         {
-            var lineDict = parseXMLLine(linesArr[line]);
-            if (!lineDict) continue;
+            var divaIdx = divaIndexes[idx];
+            var curTitle = pageTitles[divaIdx];
+            var parsed = meiEditor.getPageData(curTitle).parsed;
 
-            if (lineDict.hasOwnProperty('when'))
+            var whenPoints = parsed.querySelectorAll("when");
+            var whenIdx = whenPoints.length;
+
+            while(whenIdx--)
             {
-                //facsPoints[start point] = {'facsUUID' : UUID of associated zone, 'yPos' : uly of associated zone}
-                facsPoints[lineDict.when.absolute] = {
-                    'facsUUID': ((lineDict.when.hasOwnProperty('facs')) ? lineDict.when.facs : undefined),
-                    yPos: 0,
-                    xPos: 0
-                };
+                var thisWhen = whenPoints[whenIdx];
+                var whenID = thisWhen.getAttribute("xml:id");
+                var whenAbs = thisWhen.getAttribute('absolute');
+                facsPoints[whenAbs] = [];
+
+                var notes = parsed.querySelectorAll("[*|when='" + whenID + "']");
+                var noteIdx = notes.length;
+
+                while(noteIdx--)
+                {
+                    facsPoints[whenAbs].push(notes[noteIdx].getAttribute('facs'));
+                }
+
             }
         }
 
-        for (var page in facsDict)
-        {
-            if (page < minPage) minPage = page;
+        //create facsIntToString, a dict of {facsTimeInt: facsTimeString} where facsTimeString is a key in facsPoints
+        facsIntToString = {};
 
-            for(var zone in facsDict[page])
+        var facsIntToStringPrep = {};
+        var facsStrings = Object.keys(facsPoints);
+        var facsInts = [];
+        var curString, curFloat;
+        for (idx = 0; idx < facsStrings.length; idx++)
+        {
+            curString = facsStrings[idx];
+            curFloat = stringTimeToFloat(curString);
+            facsIntToStringPrep[curFloat] = curString;
+            facsInts.push(curFloat);
+        }
+
+        facsInts.sort(function(a, b)
+        {
+            return parseFloat(a) - parseFloat(b);
+        });
+
+        for (idx = 0; idx < facsInts.length; idx++)
+        {
+            var compFloat = facsInts[idx];
+            for (curFloat in facsIntToStringPrep)
             {
-                var curZone = facsDict[page][zone];
-                for(var curIdx in facsPoints)
+                curString = facsIntToStringPrep[curFloat];
+                if (compFloat == curFloat && facsTimes.indexOf(compFloat) == -1)
                 {
-                    curPoint = facsPoints[curIdx];
-                    if(curPoint.facsUUID == curZone.divID)
-                    {
-                        curPoint.yPos = Math.max(0, parseInt(curZone.uly, 10) - midYPoint);
-                        curPoint.xPos = Math.max(0, parseInt(curZone.ulx, 10) - midXPoint);
-                        break;
-                    }
+                    facsTimes.push(compFloat);
+                    facsIntToString[compFloat] = curString;
+                    break;
                 }
             }
-        }
-
-        var minPageOffset = divaData.getPageOffset(minPage);
-        if(facsPoints.length > 0) {
-            facsPoints["00:00:0"] = {
-                'xPos': minPageOffset.left,
-                'yPos': minPageOffset.top
-            };
         }
 
         meiEditor.events.unsubscribe('ZonesWereUpdated', onUpdate);
@@ -206,43 +174,35 @@ function stringTimeToFloat(time)
     return parseInt(timeSplit[0], 10)*3600 + parseInt(timeSplit[1], 10)*60 + parseFloat(timeSplit[2]);
 }
 
-//time in piece
-function pixelPositionForTime(time)
+function updateHighlights()
 {
-    var curXPix, curYPix, curTime, prevXPix, prevYPix, prevTime;
-    var timeDiff;
+    var currentFacsTime = facsTimes[nextFacsTimeIdx]
+    var string = facsIntToString[currentFacsTime];
+    meiEditor.deselectAllHighlights();
 
-    for (var curPoint in facsPoints)
+    for (var highlight in facsPoints[string])
     {
-        curTime = stringTimeToFloat(curPoint);
-        if (curTime > time)
-        {
-            timeDiff = curTime - prevTime;
-            curYPix = facsPoints[curPoint].yPos;
-            prevYPix = facsPoints[prevPoint].yPos;
-            curXPix = facsPoints[curPoint].xPos;
-            prevXPix = facsPoints[prevPoint].xPos; 
-            break;
-        }
-        prevPoint = curPoint;
-        prevTime = curTime;
-    } 
+        highlightID = facsPoints[string][highlight];
+        meiEditor.selectHighlight("#" + highlightID);
+    }
 
-    var timeRatio = (time - prevTime)/(curTime - prevTime);
-    return {'x': prevXPix + timeRatio*(curXPix - prevXPix), 'y':prevYPix + timeRatio*(curYPix - prevYPix)};
+    nextFacsTimeIdx++;
+    var nextFacsTime = facsTimes[nextFacsTimeIdx];
+
+    var msDifference = (nextFacsTime - currentFacsTime) * 1000;
+
+    window.clearInterval(highlightInterval);
+    highlightInterval = window.setInterval(updateHighlights, msDifference);
 }
 
 function turnOnHighlights()
 {
-    var curPosition = pixelPositionForTime(waveformAudioPlayer.currentTimeToPlaybackTime());
-    refreshScrollingSpeed();
-    divaData.startScrolling();
+    updateHighlights();
 }
 
 function turnOffHighlights()
 {
     window.clearInterval(highlightInterval);
-    divaData.stopScrolling();
 }
 
 function endMeiAppend(editorRef, prevRef, nextRef, newRef)

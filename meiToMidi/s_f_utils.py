@@ -267,6 +267,7 @@ def offsetToString(offset):
 
 def addTimeline(timewise, mei_file, stem):
     with open(mei_file, "r") as mei_fp:
+        # TODO: one when point per absolute
 
         # make it look decent
         parser = etree.XMLParser(remove_blank_text=True)
@@ -296,6 +297,4 @@ def addTimeline(timewise, mei_file, stem):
             when.attrib['absolute'] = offsetToString(item_offset)
             item.attrib['when'] = when.attrib['{http://www.w3.org/XML/1998/namespace}id']
 
-        print "writing"
         tree.write(stem + "-out.mei", pretty_print=True)
-        print "wrote"

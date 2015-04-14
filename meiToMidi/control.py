@@ -28,9 +28,10 @@ if img_debug:
     import matplotlib.pyplot as plt
 
 print "Loading file."
-#salz-test-out for both
-mei_file = "salzinnes/mei/two-voice.mei"
-stem = 'two-voice'
+# mei_file = "two-voice.mei" 
+# stem = "two-voice"
+mei_file = "salz-test-out.mei"
+stem = 'salz-test-out'
 pp = pprint.PrettyPrinter(indent=4)
 
 # data to pull in from music21
