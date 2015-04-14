@@ -6,10 +6,11 @@
         <link rel="stylesheet" href="score-following.css" />
         <link rel="stylesheet" href="diva.js/build/css/diva.min.css" />
         <link rel="stylesheet" href="meix.js/css/meiEditor.css">
+        <link rel="stylesheet" href="meix.js/css/zoneDisplay.css">
 
         <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.js"></script>
         <script src="audio.js"></script>
-        <script src="mei.js"></script>
+        <script src="mei-highlight.js"></script>
         <script src="diva.js/build/js/diva.min.js"></script>  
         <script src="meix.js/js/lib/require.js"></script>
         <script src="meix.js/js/local/meiEditorPreloader.js"></script>
@@ -21,9 +22,12 @@
             var divaSettings ={
                 enableAutoHeight: true,
                 fixedHeightGrid: false,
-                iipServerURL: "http://localhost/fcgi-bin/iipsrv.fcgi",
-                objectData: "/holst2Tiff.json",
-                imageDir: "/srv/images/holst2Tiff/",
+                // iipServerURL: "http://localhost/fcgi-bin/iipsrv.fcgi",
+                // objectData: "/holst2Tiff.json",
+                // imageDir: "/srv/images/holst2Tiff/",
+                iipServerURL: "http://diva.simssa.ca/fcgi-bin/iipsrv.fcgi",
+                objectData: "/salzinnes.json",
+                imageDir: "/srv/images/cantus/cdn-hsmu-m2149l4/",
                 enableAutoscroll: true,
                 disableAutoscrollPrefs: true,
                 disableManualScroll: true,
@@ -31,7 +35,7 @@
                 enableDownload: true,
                 enableHighlight: true,
                 enableAutoTitle: false,
-                verticallyOriented: false
+                //verticallyOriented: false
             };
 
             var element = "#mei";
@@ -39,10 +43,11 @@
             {
                 'meiEditorLocation': '/meix.js/',
                 'divaInstance': divaData,
-                'jsonFileLocation': '/holst1Tiff.json',
-                'oneToOneMEI': false,
+                'oneToOneMEI': true,
                 'skipXMLValidator': true,
-                'initializeWithFile': '/testMEI.xml'
+                'disableShiftNew': true,
+                // 'initializeWithFile': '/testMEI.xml'
+                'initializeWithFile': 'meiToMidi/cdn-hsmu-m2149l4_002r.mei'
             };
             var plugins = ["meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
 
