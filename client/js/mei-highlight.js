@@ -63,6 +63,7 @@ function initializeMEI()
             {
                 highlightMode = $("#autoscroll-checkbox").is(":checked");
             }
+            console.log(waveformAudioPlayer.isPlaying() , highlightMode);
             if(waveformAudioPlayer.isPlaying() && highlightMode)
             {
                 turnOnHighlights();
@@ -191,6 +192,7 @@ function updateHighlights()
 
     var msDifference = (nextFacsTime - currentFacsTime) * 1000;
 
+    console.log(msDifference);
     window.clearInterval(highlightInterval);
     highlightInterval = window.setInterval(updateHighlights, msDifference);
 }

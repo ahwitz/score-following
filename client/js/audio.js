@@ -25,7 +25,7 @@ function hasOwnProperty(obj, prop) {
         //Web Audio API variables
         var audioContext = new AudioContext();
         var gainMod = audioContext.createGain();
-        var INITIAL_GAIN_VALUE = 0.1;
+        var INITIAL_GAIN_VALUE = 0.6;
         gainMod.gain.value = INITIAL_GAIN_VALUE;
         var audioBuffer;
         var audioSource;
