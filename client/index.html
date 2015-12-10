@@ -3,27 +3,28 @@
     <head>
         <title>Score Following</title> 
         <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
-        <link rel="stylesheet" href="score-following.css" />
-        <link rel="stylesheet" href="diva.js/build/css/diva.min.css" />
-        <link rel="stylesheet" href="meix.js/css/meiEditor.css">
-        <link rel="stylesheet" href="meix.js/css/zoneDisplay.css">
+        <link rel="stylesheet" href="css/score-following.css" />
+        <link rel="stylesheet" href="js/diva.js/build/css/diva.min.css" />
+        <link rel="stylesheet" href="js/meix.js/css/meiEditor.css">
+        <link rel="stylesheet" href="js/meix.js/css/zoneDisplay.css">
 
         <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.js"></script>
-        <script src="audio.js"></script>
-        <script src="mei-highlight.js"></script>
-        <script src="diva.js/build/js/diva.min.js"></script>  
-        <script src="meix.js/js/lib/require.js"></script>
-        <script src="meix.js/js/local/meiEditorPreloader.js"></script>
+        <script src="js/audio.js"></script>
+        <script src="js/mei-controller.js"></script>
+        <script src="js/diva.js/build/js/diva.min.js"></script>  
+        <script src="js/vida.js/vida.js"></script>  
+        <script src="js/meix.js/js/lib/require.js"></script>
+        <script src="js/meix.js/js/local/meiEditorPreloader.js"></script>
         <script>
             var meiEditor;
             var waveformAudioPlayer;
             var divaData;
 
-            var divaSettings ={
+            var divaSettings = {
                 enableAutoHeight: true,
                 fixedHeightGrid: false,
                 iipServerURL: "http://localhost/fcgi-bin/iipsrv.fcgi",
-                objectData: "/holst2Tiff.json",
+                objectData: "diva_data/holst2Tiff.json",
                 imageDir: "/srv/images/holst2Tiff/",
                 // iipServerURL: "http://diva.simssa.ca/fcgi-bin/iipsrv.fcgi",
                 // objectData: "/salzinnes.json",
@@ -34,23 +35,22 @@
                 enableCanvas: true,
                 enableDownload: true,
                 enableHighlight: true,
-                enableAutoTitle: false,
+                enableAutoTitle: false
                 //verticallyOriented: false
             };
 
             var element = "#mei";
             var meixSettings = 
             {
-                'meiEditorLocation': '/meix.js/',
+                'meiEditorLocation': 'js/meix.js/',
                 'divaInstance': divaData,
-                'oneToOneMEI': true,
                 'skipXMLValidator': true,
                 'disableShiftNew': true,
-                meiToIgnore: ['system'],
-                'initializeWithFile': '/holst2-reg-1.xml'
+                'meiToIgnore': ['system'],
+                'initializeWithFile': 'mei_data/holst2-reg-1.xml'
                 // 'initializeWithFile': 'meiToMidi/cdn-hsmu-m2149l4_002r.mei'
             };
-            var plugins = ["meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
+            var plugins = ["js/meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
 
             $(document).ready(function() {
                 $('#diva').diva(divaSettings);

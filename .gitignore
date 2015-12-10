@@ -7,5 +7,5 @@ meiToMidi/audio_data/*
 meiToMidi/imgout/*
 meiToMidi/instrument_data
 meiToMidi/mei_data
-mei_data/*
+client/mei_data/*
 *.pyc
