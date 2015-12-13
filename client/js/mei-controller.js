@@ -96,14 +96,12 @@ function regenerateFacsPoints()
         facsPoints = {};
 
         var pageTitles = meiEditor.getLinkedPageTitles();
-        var divaIndexes = Object.keys(pageTitles);
-        var idx = divaIndexes.length;
+        var idx = pageTitles.length;
 
         //create facsPoints, a dict of {timestamp string: [highlightID1, highlightID2...]}
         while(idx--)
         {
-            var divaIdx = divaIndexes[idx];
-            var curTitle = pageTitles[divaIdx];
+            var curTitle = pageTitles[idx];
             var parsed = meiEditor.getPageData(curTitle).parsed;
 
             var whenPoints = parsed.querySelectorAll("when");
