@@ -85,6 +85,13 @@ function initializeMEI()
         if (highlightMode) turnOnHighlights();
     });
 
+    meiEditor.events.subscribe("ActivePageChanged", function(filename) {
+        console.log(filename, meiEditor.isActivePageLinked(filename));
+    });
+    meiEditor.events.subscribe("NewFile", function(a, filename) {
+        console.log(filename, meiEditor.isActivePageLinked(filename));
+    });
+
     //we need the facs points to start and this will update zones
     regenerateFacsPoints();
 }
@@ -96,12 +103,15 @@ function regenerateFacsPoints()
         facsPoints = {};
 
         var pageTitles = meiEditor.getLinkedPageTitles();
+        var divaPages = Object.keys(pageTitles);
         var idx = pageTitles.length;
 
         //create facsPoints, a dict of {timestamp string: [highlightID1, highlightID2...]}
         while(idx--)
         {
-            var curTitle = pageTitles[idx];
+            var divaFilename = divaPages[idx];
+            var curTitle = pageTitles[divaIdx];
+            console.log(pageTitles);
             var parsed = meiEditor.getPageData(curTitle).parsed;
 
             var whenPoints = parsed.querySelectorAll("when");
