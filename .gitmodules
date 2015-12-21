@@ -1,9 +1,9 @@
 [submodule "meix.js"]
 	path = client/js/meix.js
-	url = https://github.com/DDMAL/meix.js
+	url = git@github.com:DDMAL/meix.js
 [submodule "diva.js"]
 	path = client/js/diva.js
-	url = https://github.com/DDMAL/diva.js
+	url = git@github.com:DDMAL/diva.js
 [submodule "vida.js"]
 	path = client/js/vida.js
-	url = https://github.com/DDMAL/vida.js
+	url = git@github.com:DDMAL/vida.js
