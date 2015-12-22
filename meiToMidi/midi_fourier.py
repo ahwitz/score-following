@@ -24,7 +24,7 @@ def transformInstrument(program_number):
 
     if os.path.isdir(tempdir):
         if os.listdir(tempdir) != []:
-            print "tempdir is not empty; aborting"
+            print("tempdir is not empty; aborting")
             #sys.exit(1)
 
     else:
@@ -33,7 +33,7 @@ def transformInstrument(program_number):
     inst_data = {}
     temp_stream = stream.Stream()
     temp_stream.append(instrument.instrumentFromMidiProgram(program_number))
-    print "Generating JSON for MIDI program number", str(program_number) + "."
+    print("Generating JSON for MIDI program number", str(program_number) + ".")
     for cur_pitch in range(12, 125):
         # print "Plotting for", cur_pitch
         # prep variables for file locations
@@ -122,6 +122,6 @@ def loadInstrument(program_number):
 
 
 if __name__ == "__main__":
-    print "You're running this directly."
+    print("You're running this directly.")
     transformInstrument(71)
     transformInstrument(0)

@@ -17,6 +17,18 @@ from s_f_utils import *
 # debugging
 import pprint
 import pdb
+import sys
+
+parser = argparse.ArgumentParser(description='Process some integers.')
+parser.add_argument('--mei', help='mei file to align')
+parser.add_argument('--audio', help='audio file to align')
+
+args = parser.parse_args()
+mei_file = args.mei
+stem = 'salz-test-out'
+pp = pprint.PrettyPrinter(indent=4)
+
+print(args.mei, args.audio)
 
 MAX_FREQ = 300000000
 SMOOTH_DISTANCE = 5
@@ -26,13 +38,6 @@ img_debug = False
 
 if img_debug:
     import matplotlib.pyplot as plt
-
-print "Loading file."
-# mei_file = "two-voice.mei" 
-# stem = "two-voice"
-mei_file = "salz-test-out.mei"
-stem = 'salz-test-out'
-pp = pprint.PrettyPrinter(indent=4)
 
 # data to pull in from music21
 tempo = 0
@@ -60,7 +65,7 @@ for part in parsed[1:]: # parsed[0] is metadata; we don't want that
     instruments_fft[this_instrument] = loadInstrument(this_instrument) # from midi_fourier.py
 
 # reload the wav, get the first track
-print "Reading wav."
+print("Reading wav.")
 sample_rate, data = wavfile.read(stem + '.wav')
 first_track = data.T[0] # first channel
 
@@ -78,7 +83,7 @@ plot_length = min(window_length / 2, MAX_FREQ) # window_length/2 because the fou
 window_seconds = window_length / sample_rate 
 
 # pp.pprint(sorted(timewise.items(), key=operator.itemgetter(0)))
-print "Writing with", window_length, "frame window size: "
+print("Writing with", window_length, "frame window size: ")
 lastMidi = -1
 start_point = 0
 count = 0
@@ -122,7 +127,7 @@ while start_point < audible_length:
             hz_plot[idx] = sum(arr) / len(arr)
             idx += 1
 
-    print "\nFor quarter:", str(count), "(" + str(start_seconds), "to", str(end_seconds) + ")"
+    print("\nFor quarter:", str(count), "(" + str(start_seconds), "to", str(end_seconds) + ")")
 
     # print the fourier graph if desired
     if img_debug:
@@ -186,7 +191,7 @@ while start_point < audible_length:
         #   found_hz.append(hz_max)
         #   found_midi.append(cur_midi)
 
-    print "\tNotes found:", found_midi
+    print("\tNotes found:", found_midi)
 
     events[start_point / sample_rate] = found_midi
 
@@ -194,9 +199,9 @@ while start_point < audible_length:
     count += 1
 
 print_explanation_guide()
-print "Detected:"
+print("Detected:")
 pp.pprint(sorted(events.items(), key=operator.itemgetter(0)))
-print "Expected:"
+print("Expected:")
 pp.pprint(timewise.offsets)
 
 addTimeline(timewise, mei_file, stem)
