@@ -93,6 +93,7 @@ function regenerateFacsPoints()
 {
     var onUpdate = function(facsDict)
     {
+        var rendered = switchToRenderer(meiEditor.isActivePageLinked() ? "diva" : "vida", meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed);
         facsPoints = {};
 
         var pageTitles = meiEditor.getLinkedPageTitles();
