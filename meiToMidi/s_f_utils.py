@@ -36,9 +36,9 @@ class Explanation(Enum):
     UNKNOWN = 100 # can not be explained at the given time point
 
 def print_explanation_guide():
-    print "Explanation guide:"
+    print("Explanation guide:")
     for prop in Explanation.__members__:
-        print "\t", prop + ":", Explanation.__members__[prop]
+        print("\t", prop + ":", Explanation.__members__[prop])
 
 #TODO: I dunno, reorganize the objects to be timewise or something because the True/None thing doesn't actually work...
 class timewiseMusic21:
@@ -57,7 +57,7 @@ class timewiseMusic21:
                         for this_note in item: 
                             self.processNote(this_note, tempo, measure_offset, offsets)
                     elif not isinstance(item, note.Rest):
-                        print "Found an unexpected", item
+                        print("Found an unexpected", item)
 
         for offset in offsets.keys():
             offsets[offset] = timePoint(offsets[offset], offset, self)
