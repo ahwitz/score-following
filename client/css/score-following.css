@@ -19,7 +19,9 @@ body, html{
 }
 #renderer{
     top: 0;
-    width: 50%;
+    width:50%;
+    max-width: 50%;
+    height:100%;
     float: right;
 }
 #drag-div{
