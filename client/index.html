@@ -11,95 +11,13 @@
 
         <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.js"></script>
         <script src="js/audio.js"></script>
+        <script src="js/utils.js"></script>
         <script src="js/mei-controller.js"></script>
         <script src="js/diva.js/build/js/diva.min.js"></script>  
         <script src="js/vida.js/vida.js"></script>
         <script src="js/vida.js/mei.js"></script>  
         <script src="js/meix.js/js/lib/require.js"></script>
         <script src="js/meix.js/js/local/meiEditorPreloader.js"></script>
-        <script>
-            var meiEditor;
-            var waveformAudioPlayer;
-            var divaData;
-            var vidaData;
-
-            var divaSettings = {
-                enableAutoHeight: true,
-                fixedHeightGrid: false,
-                iipServerURL: "http://localhost/fcgi-bin/iipsrv.fcgi",
-                objectData: "diva_data/holst2Tiff.json",
-                imageDir: "/srv/images/holst2Tiff/",
-                // iipServerURL: "http://diva.simssa.ca/fcgi-bin/iipsrv.fcgi",
-                // objectData: "/salzinnes.json",
-                // imageDir: "/srv/images/cantus/cdn-hsmu-m2149l4/",
-                enableAutoscroll: true,
-                disableAutoscrollPrefs: true,
-                disableManualScroll: true,
-                enableCanvas: true,
-                enableDownload: true,
-                enableHighlight: true,
-                enableAutoTitle: false
-                //verticallyOriented: false
-            };
-
-            var element = "#mei";
-            var meixSettings = 
-            {
-                'meiEditorLocation': 'js/meix.js/',
-                'divaInstance': divaData,
-                'skipXMLValidator': true,
-                // 'disableShiftNew': true,
-                'meiToIgnore': ['system'],
-                // 'initializeWithFile': 'mei_data/holst2-onepage.xml'
-                'initializeWithFile': 'mei_data/krebs.mei'
-                // 'initializeWithFile': 'meiToMidi/cdn-hsmu-m2149l4_002r.mei'
-            };
-            var plugins = ["js/meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
-
-            var vidaSettings = 
-            {
-                horizontallyOriented: 0,
-                fileOnLoadIsURL: false,
-                workerLocation: "/js/vida.js/verovioWorker.js"
-            };
-
-            $(document).ready(function() {
-                $('#renderer').diva(divaSettings);
-                divaData = $("#renderer").data('diva');
-                meixSettings.divaInstance = divaData;
-
-                $('#waveform').wap({}); 
-                waveformAudioPlayer = $("#waveform").data('wap');
-
-                meiEditor = new MeiEditor(element, meixSettings, plugins);
-                $(window).on('meiEditorLoaded', function(){
-                    meiEditor = $("#mei").data('AceMeiEditor');
-                    initializeMEI();
-                });
-            });
-
-            var switchToRenderer = function(which, newFile)
-            {
-                if (which === "diva" && !divaData)
-                {
-                    vidaData.destroy();
-                    $('#renderer').diva(divaSettings);
-                    vidaData = null;
-                    divaData = $('#renderer').data('diva');
-                    meixSettings.divaInstance = divaData;
-                    return "diva";
-                }
-                if (which === "vida" && !vidaData)
-                {
-                    divaData.destroy();
-                    vidaSettings.fileOnLoad = newFile.children[0].outerHTML;
-                    $('#renderer').vida(vidaSettings);
-                    divaData = null;
-                    vidaData = $('#renderer').data('vida');
-                    return "vida";
-                }
-            };
-        </script>
     </head> 
 
     <body>
