@@ -68,7 +68,7 @@ $(document).ready(function() {
         if(!meixSettings.hasOwnProperty('initializeWithFile'))
             createDefaultMEI();
         
-        //meiEditor.events.subscribe("PageEdited", regenerateFacsPoints);
+        // meiEditor.events.subscribe("PageEdited", regenerateTimePoints);
         $("#playback-checkbox").on('change', function(e)
         {
             $("#autoscroll-wrapper").css('display', ($("#playback-checkbox").is(":checked") ? "inline" : "none"));
@@ -94,7 +94,7 @@ $(document).ready(function() {
                 }
             });
         });
-        $("#playback-checkbox").after("<button onclick='regenerateFacsPoints()'>Reload MEI</button>");
+        $("#playback-checkbox").after("<button onclick='regenerateTimePoints()'>Reload MEI</button>");
         $("#pause-button").on('click', function()
         {
             if (highlightMode) turnOffHighlights();
@@ -113,9 +113,28 @@ $(document).ready(function() {
         });
 
         //we need the facs points to start and this will update zones
-        regenerateFacsPoints();
+        regenerateTimePoints();
     });
 });
+
+// Triggers a call to publishZones and runs onUpdate on the results
+var meiUpdateStartFunction;
+var meiUpdateEndFunction;
+function regenerateTimePoints()
+{    
+    var parsed = meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed;
+    if (meiEditor.isActivePageLinked())
+    {
+        switchToRenderer("diva", parsed);
+        meiEditor.events.subscribe('ZonesWereUpdated', divaUpdate);
+        meiEditor.events.publish('UpdateZones');
+    }
+    else
+    {
+        switchToRenderer("vida", parsed);
+        vidaUpdate(parsed);
+    }
+}
 
 var switchToRenderer = function(which, newFile)
 {
@@ -126,8 +145,23 @@ var switchToRenderer = function(which, newFile)
         vidaData = null;
         divaData = $('#renderer').data('diva');
         meixSettings.divaInstance = divaData;
+
+        meiUpdateStartFunction = function(time) 
+        {
+            meiEditor.localLog("Got a request for a zone at "+ time);
+            meiEditor.startNewHighlight();
+            meiEditor.events.subscribe('NewZone', meiUpdateEndFunction);
+        };
+        meiUpdateEndFunction = function(page, prevZone, newZone, uuid)
+        {
+            meiEditor.events.unsubscribe('NewZone', meiUpdateEndFunction);
+            regenerateTimePoints();
+            insertNewTimepoint(meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed, uuid);
+            waveformAudioPlayer.startAudioPlayback();
+        };
         return "diva";
     }
+
     if (which === "vida" && !vidaData)
     {
         divaData.destroy();
@@ -135,91 +169,130 @@ var switchToRenderer = function(which, newFile)
         $('#renderer').vida(vidaSettings);
         divaData = null;
         vidaData = $('#renderer').data('vida');
+
+        meiUpdateStartFunction = function(time) 
+        {
+            meiEditor.localLog("Got a request for a zone at "+ time);
+            mei.Events.subscribe('MeasureClicked', meiUpdateEndFunction);
+        };
+        meiUpdateEndFunction = function(measureObj)
+        {
+            meiEditor.events.unsubscribe('MeasureClicked', meiUpdateEndFunction);
+            regenerateTimePoints();
+            insertNewTimepoint(meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed, measureObj.attr('id'));
+            waveformAudioPlayer.startAudioPlayback();
+        };
+
         return "vida";
     }
 };
 
-function regenerateFacsPoints()
+var insertNewTimepoint = function(parsed, targetUUID)
 {
-    var onUpdate = function(facsDict)
+    var timelines = parsed.querySelectorAll("*|timeline");
+    var activeTimeline;
+    if (timelines.length === 0)
     {
-        var rendered = switchToRenderer(meiEditor.isActivePageLinked() ? "diva" : "vida", meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed);
-        facsPoints = {};
+        var music = parsed.querySelector("*|music");
+        activeTimeline = document.createElement("timeline");
+        activeTimeline.setAttribute('xml:id', genUUID());
+        music.appendChild(activeTimeline);
+    }
+    else
+    {
+        // Switch based off audio file name?
+        activeTimeline = timelines[0];
+    }
 
-        var pageTitles = meiEditor.getLinkedPageTitles();
-        var divaPages = Object.keys(pageTitles);
-        var idx = pageTitles.length;
+    var newWhen = document.createElement("when");
+    var whenUUID = genUUID();
+    newWhen.setAttribute('xml:id', whenUUID);
+    newWhen.setAttribute('absolute', waveformAudioPlayer.currentTimeToPlaybackTime());
+    activeTimeline.appendChild(newWhen);
 
-        //create facsPoints, a dict of {timestamp string: [highlightID1, highlightID2...]}
-        while(idx--)
+    var targetObj = parsed.querySelector("*[*|id='" + targetUUID + "']");
+    targetObj.setAttribute('when', whenUUID);
+    rewriteAce(meiEditor.getPageData(meiEditor.getActivePageTitle()))
+;};
+
+var divaUpdate = function(facsDict)
+{
+    facsPoints = {};
+
+    var pageTitles = meiEditor.getLinkedPageTitles();
+    var divaPages = Object.keys(pageTitles);
+    var idx = pageTitles.length;
+
+    //create facsPoints, a dict of {timestamp string: [highlightID1, highlightID2...]}
+    while(idx--)
+    {
+        var divaFilename = divaPages[idx];
+        var curTitle = pageTitles[divaIdx];
+        var parsed = meiEditor.getPageData(curTitle).parsed;
+
+        var whenPoints = parsed.querySelectorAll("when");
+        var whenIdx = whenPoints.length;
+
+        while(whenIdx--)
         {
-            var divaFilename = divaPages[idx];
-            var curTitle = pageTitles[divaIdx];
-            console.log(pageTitles);
-            var parsed = meiEditor.getPageData(curTitle).parsed;
+            var thisWhen = whenPoints[whenIdx];
+            var whenID = thisWhen.getAttribute("xml:id");
+            var whenAbs = thisWhen.getAttribute('absolute');
+            facsPoints[whenAbs] = [];
 
-            var whenPoints = parsed.querySelectorAll("when");
-            var whenIdx = whenPoints.length;
+            var notes = parsed.querySelectorAll("[*|when='" + whenID + "']");
+            var noteIdx = notes.length;
 
-            while(whenIdx--)
+            while(noteIdx--)
             {
-                var thisWhen = whenPoints[whenIdx];
-                var whenID = thisWhen.getAttribute("xml:id");
-                var whenAbs = thisWhen.getAttribute('absolute');
-                facsPoints[whenAbs] = [];
+                facsPoints[whenAbs].push(notes[noteIdx].getAttribute('facs'));
+            }
 
-                var notes = parsed.querySelectorAll("[*|when='" + whenID + "']");
-                var noteIdx = notes.length;
+        }
+    }
 
-                while(noteIdx--)
-                {
-                    facsPoints[whenAbs].push(notes[noteIdx].getAttribute('facs'));
-                }
+    //create facsIntToString, a dict of {facsTimeInt: facsTimeString} where facsTimeString is a key in facsPoints
+    facsIntToString = {};
 
+    var facsIntToStringPrep = {};
+    var facsStrings = Object.keys(facsPoints);
+    var facsInts = [];
+    var curString, curFloat;
+    for (idx = 0; idx < facsStrings.length; idx++)
+    {
+        curString = facsStrings[idx];
+        curFloat = stringTimeToFloat(curString);
+        facsIntToStringPrep[curFloat] = curString;
+        facsInts.push(curFloat);
+    }
+
+    facsInts.sort(function(a, b)
+    {
+        return parseFloat(a) - parseFloat(b);
+    });
+
+    for (idx = 0; idx < facsInts.length; idx++)
+    {
+        var compFloat = facsInts[idx];
+        for (curFloat in facsIntToStringPrep)
+        {
+            curString = facsIntToStringPrep[curFloat];
+            if (compFloat == curFloat && facsTimes.indexOf(compFloat) == -1)
+            {
+                facsTimes.push(compFloat);
+                facsIntToString[compFloat] = curString;
+                break;
             }
         }
+    }
 
-        //create facsIntToString, a dict of {facsTimeInt: facsTimeString} where facsTimeString is a key in facsPoints
-        facsIntToString = {};
+    meiEditor.events.unsubscribe('ZonesWereUpdated', divaUpdate);
+};
 
-        var facsIntToStringPrep = {};
-        var facsStrings = Object.keys(facsPoints);
-        var facsInts = [];
-        var curString, curFloat;
-        for (idx = 0; idx < facsStrings.length; idx++)
-        {
-            curString = facsStrings[idx];
-            curFloat = stringTimeToFloat(curString);
-            facsIntToStringPrep[curFloat] = curString;
-            facsInts.push(curFloat);
-        }
+var vidaUpdate = function(parsed)
+{
 
-        facsInts.sort(function(a, b)
-        {
-            return parseFloat(a) - parseFloat(b);
-        });
-
-        for (idx = 0; idx < facsInts.length; idx++)
-        {
-            var compFloat = facsInts[idx];
-            for (curFloat in facsIntToStringPrep)
-            {
-                curString = facsIntToStringPrep[curFloat];
-                if (compFloat == curFloat && facsTimes.indexOf(compFloat) == -1)
-                {
-                    facsTimes.push(compFloat);
-                    facsIntToString[compFloat] = curString;
-                    break;
-                }
-            }
-        }
-
-        meiEditor.events.unsubscribe('ZonesWereUpdated', onUpdate);
-    };
-    
-    meiEditor.events.subscribe('ZonesWereUpdated', onUpdate);
-    meiEditor.events.publish('UpdateZones');
-}
+};
 
 function turnOffHighlights()
 {

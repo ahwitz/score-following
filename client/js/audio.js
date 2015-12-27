@@ -284,20 +284,11 @@ function hasOwnProperty(obj, prop) {
                     else if(audioSource && audioSource.isPlaying)
                     {
                         pauseAudioPlayback(true);
-                        meiEditor.localLog("Got a request for a zone at "+ time);
-                        meiEditor.startNewHighlight();
-                        meiEditor.events.subscribe('NewZone', endMeiAppend);
+                        meiUpdateStartFunction(currentTimeToPlaybackTime());
                     }
                 }
             });
         }
-
-        var endMeiAppend = function (editorRef, prevRef, nextRef, newRef)
-        {
-            meiEditor.events.unsubscribe('NewZone', endMeiAppend);
-            regenerateFacsPoints();
-            waveformAudioPlayer.startAudioPlayback();
-        };
 
         this.realTimeToPlaybackTime = function (time) 
         {
