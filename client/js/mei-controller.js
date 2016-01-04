@@ -83,7 +83,7 @@ $(document).ready(function() {
                 {
                     highlightMode = $("#autoscroll-checkbox").is(":checked");
                 }
-                console.log(waveformAudioPlayer.isPlaying() , highlightMode);
+                
                 if(waveformAudioPlayer.isPlaying() && highlightMode)
                 {
                     updateHighlights();
@@ -120,6 +120,7 @@ $(document).ready(function() {
 // Triggers a call to publishZones and runs onUpdate on the results
 var meiUpdateStartFunction;
 var meiUpdateEndFunction;
+var endHandler;
 function regenerateTimePoints()
 {    
     var parsed = meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed;
@@ -150,11 +151,11 @@ var switchToRenderer = function(which, newFile)
         {
             meiEditor.localLog("Got a request for a zone at "+ time);
             meiEditor.startNewHighlight();
-            meiEditor.events.subscribe('NewZone', meiUpdateEndFunction);
+            endHandler = meiEditor.events.subscribe('NewZone', meiUpdateEndFunction);
         };
         meiUpdateEndFunction = function(page, prevZone, newZone, uuid)
         {
-            meiEditor.events.unsubscribe('NewZone', meiUpdateEndFunction);
+            meiEditor.events.unsubscribe(endHandler);
             regenerateTimePoints();
             insertNewTimepoint(meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed, uuid);
             waveformAudioPlayer.startAudioPlayback();
@@ -173,11 +174,11 @@ var switchToRenderer = function(which, newFile)
         meiUpdateStartFunction = function(time) 
         {
             meiEditor.localLog("Got a request for a zone at "+ time);
-            mei.Events.subscribe('MeasureClicked', meiUpdateEndFunction);
+            endHandler = mei.Events.subscribe('MeasureClicked', meiUpdateEndFunction);
         };
         meiUpdateEndFunction = function(measureObj)
         {
-            meiEditor.events.unsubscribe('MeasureClicked', meiUpdateEndFunction);
+            mei.Events.unsubscribe(endHandler);
             regenerateTimePoints();
             insertNewTimepoint(meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed, measureObj.attr('id'));
             waveformAudioPlayer.startAudioPlayback();

@@ -216,8 +216,8 @@ function hasOwnProperty(obj, prop) {
         }
 
         //Initializes keyboard listeners
-        function initListeners() {
-
+        function initListeners() 
+        {
             $("#play-button").on('click', function()
             {
                 if(audioBuffer === null)
@@ -270,14 +270,9 @@ function hasOwnProperty(obj, prop) {
                     if(playbackMode)
                     {
                         if(audioSource && audioSource.isPlaying)
-                        {
                             pauseAudioPlayback(true);
-                        }
                         else
-                        {
                             startAudioPlayback();
-                        }
-
                     }
 
                     //pause the audio playback and wait for zone
