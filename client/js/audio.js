@@ -314,7 +314,7 @@ function hasOwnProperty(obj, prop) {
         {
             if (!audioSource) return false;
             return audioSource.isPlaying;
-        }
+        };
 
         //Actual init function for the entire object
         function init()

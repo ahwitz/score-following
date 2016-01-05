@@ -83,7 +83,7 @@ $(document).ready(function() {
                 {
                     highlightMode = $("#autoscroll-checkbox").is(":checked");
                 }
-                
+
                 if(waveformAudioPlayer.isPlaying() && highlightMode)
                 {
                     updateHighlights();
@@ -120,6 +120,7 @@ $(document).ready(function() {
 // Triggers a call to publishZones and runs onUpdate on the results
 var meiUpdateStartFunction;
 var meiUpdateEndFunction;
+var updateHighlights;
 var endHandler;
 function regenerateTimePoints()
 {    
@@ -146,6 +147,7 @@ var switchToRenderer = function(which, newFile)
         vidaData = null;
         divaData = $('#renderer').data('diva');
         meixSettings.divaInstance = divaData;
+        updateHighlights = updateDivaHighlights;
 
         meiUpdateStartFunction = function(time) 
         {
@@ -170,6 +172,7 @@ var switchToRenderer = function(which, newFile)
         $('#renderer').vida(vidaSettings);
         divaData = null;
         vidaData = $('#renderer').data('vida');
+        updateHighlights = updateVidaHighlights;
 
         meiUpdateStartFunction = function(time) 
         {
@@ -213,8 +216,8 @@ var insertNewTimepoint = function(parsed, targetUUID)
 
     var targetObj = parsed.querySelector("*[*|id='" + targetUUID + "']");
     targetObj.setAttribute('when', whenUUID);
-    rewriteAce(meiEditor.getPageData(meiEditor.getActivePageTitle()))
-;};
+    rewriteAce(meiEditor.getPageData(meiEditor.getActivePageTitle()));
+};
 
 var divaUpdate = function(facsDict)
 {
@@ -227,7 +230,6 @@ var divaUpdate = function(facsDict)
     //create facsPoints, a dict of {timestamp string: [highlightID1, highlightID2...]}
     while(idx--)
     {
-        var divaFilename = divaPages[idx];
         var curTitle = pageTitles[divaIdx];
         var parsed = meiEditor.getPageData(curTitle).parsed;
 
@@ -292,7 +294,31 @@ var divaUpdate = function(facsDict)
 
 var vidaUpdate = function(parsed)
 {
+    facsPoints = {};
+    var facsPointsStaging = {};
 
+    // Get a list of <when> timepoints and order them
+    var parsed = meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed;
+    var whenPoints = parsed.querySelectorAll("when");
+    var whenIdx = whenPoints.length;
+
+    while(whenIdx--)
+    {
+        var thisWhen = whenPoints[whenIdx];
+        var whenID = thisWhen.getAttribute("xml:id");
+        var whenAbs = thisWhen.getAttribute('absolute');
+        var floatWhen = (whenAbs.indexOf(":") > 0 ? stringTimeToFloat(whenAbs) : parseFloat(whenAbs));
+        facsPointsStaging[floatWhen] = "#" + parsed.querySelector("[*|when='" + whenID + "']").getAttribute('xml:id');
+    }
+
+    // Make sure they're in ascending order to speed up calculations later
+    facsInts = Object.keys(facsPointsStaging);
+    facsInts.sort(function(a, b)
+    {
+        return parseFloat(a) - parseFloat(b);
+    });
+    for (var idx = 0; idx < facsInts.length; idx++)
+        facsPoints[facsInts[idx]] = facsPointsStaging[facsInts[idx]];
 };
 
 function turnOffHighlights()
@@ -300,7 +326,7 @@ function turnOffHighlights()
     window.clearTimeout(highlightInterval);
 }
 
-function updateHighlights()
+function updateDivaHighlights()
 {
     var currentFacsTime = facsTimes[nextFacsTimeIdx];
     var string = facsIntToString[currentFacsTime];
@@ -320,6 +346,11 @@ function updateHighlights()
     console.log(msDifference);
     window.clearTimeout(highlightInterval);
     highlightInterval = window.setTimeout(updateHighlights, msDifference);
+}
+
+function updateVidaHighlights()
+{
+
 }
 
 function createDefaultMEI()
