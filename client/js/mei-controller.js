@@ -6,8 +6,9 @@ var facsTimes = []; //stores times as ints
 var facsIntToString = {}; //dict to change facsTimes to facsPoints keys
 var pageRefs = [];
 var highlightMode = false;
-var highlightInterval;
+var highlightTimeout;
 var nextFacsTimeIdx = 0;
+var activeFacsTime = -1;
 
 var meiEditor;
 var waveformAudioPlayer;
@@ -197,10 +198,17 @@ var insertNewTimepoint = function(parsed, targetUUID)
     var activeTimeline;
     if (timelines.length === 0)
     {
+        var origin = document.createElement("when");
+        var originID = genUUID();
+        origin.setAttribute('xml:id', originID);
+        origin.setAttribute('absolute', 0);
+
         var music = parsed.querySelector("*|music");
         activeTimeline = document.createElement("timeline");
         activeTimeline.setAttribute('xml:id', genUUID());
+        activeTimeline.setAttribute('origin', originID);
         music.appendChild(activeTimeline);
+        activeTimeline.appendChild(origin);
     }
     else
     {
@@ -308,7 +316,8 @@ var vidaUpdate = function(parsed)
         var whenID = thisWhen.getAttribute("xml:id");
         var whenAbs = thisWhen.getAttribute('absolute');
         var floatWhen = (whenAbs.indexOf(":") > 0 ? stringTimeToFloat(whenAbs) : parseFloat(whenAbs));
-        facsPointsStaging[floatWhen] = "#" + parsed.querySelector("[*|when='" + whenID + "']").getAttribute('xml:id');
+        if (parsed.querySelector("[*|when='" + whenID + "']"))
+            facsPointsStaging[floatWhen] = "#" + parsed.querySelector("[*|when='" + whenID + "']").getAttribute('xml:id');
     }
 
     // Make sure they're in ascending order to speed up calculations later
@@ -323,7 +332,7 @@ var vidaUpdate = function(parsed)
 
 function turnOffHighlights()
 {
-    window.clearTimeout(highlightInterval);
+    window.clearTimeout(highlightTimeout);
 }
 
 function updateDivaHighlights()
@@ -343,14 +352,41 @@ function updateDivaHighlights()
 
     var msDifference = (nextFacsTime - currentFacsTime) * 1000;
 
-    console.log(msDifference);
-    window.clearTimeout(highlightInterval);
-    highlightInterval = window.setTimeout(updateHighlights, msDifference);
+    window.clearTimeout(highlightTimeout);
+    highlightTimeout = window.setTimeout(updateHighlights, msDifference);
 }
 
 function updateVidaHighlights()
 {
+    var oldFacsTime = activeFacsTime;
+    var activeHighlight = document.querySelector(facsPoints[activeFacsTime]);
+    var nextHighlight;
 
+    var facsTimes = Object.keys(facsPoints);
+    for (var x = 0; x < facsTimes.length; x++)
+    {
+        if (facsTimes[x] > activeFacsTime)
+        {
+            activeFacsTime = facsTimes[x];
+            nextHighlight = document.querySelector(facsPoints[activeFacsTime]);
+            break;
+        }
+    }
+
+    // If there was a previous highlight, paint it black
+    if (activeHighlight) $(activeHighlight).find("*").css({
+            "fill": "#000",
+            "stroke": "#000"
+        });
+
+    // If there's a next highlight, paint it red
+    if (!nextHighlight) return;
+    $(nextHighlight).find("*").css({ // if we're here, it exists
+        "fill": "#f00",
+        "stroke": "#f00"
+    });
+
+    highlightTimeout = window.setTimeout(updateHighlights, (activeFacsTime - oldFacsTime) * 1000);
 }
 
 function createDefaultMEI()
