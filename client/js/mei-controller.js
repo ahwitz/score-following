@@ -40,11 +40,8 @@ var meixSettings =
     'meiEditorLocation': 'js/meix.js/',
     'divaInstance': divaData,
     'skipXMLValidator': true,
-    // 'disableShiftNew': true,
     'meiToIgnore': ['system'],
-    // 'initializeWithFile': 'mei_data/holst2-onepage.xml'
     'initializeWithFile': 'mei_data/krebs.mei'
-    // 'initializeWithFile': 'meiToMidi/cdn-hsmu-m2149l4_002r.mei'
 };
 var plugins = ["js/meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
 
@@ -56,10 +53,6 @@ var vidaSettings =
 };
 
 $(document).ready(function() {
-    $('#renderer').diva(divaSettings);
-    divaData = $("#renderer").data('diva');
-    meixSettings.divaInstance = divaData;
-
     $('#waveform').wap({}); 
     waveformAudioPlayer = $("#waveform").data('wap');
 
@@ -143,7 +136,7 @@ var switchToRenderer = function(which, newFile)
 {
     if (which === "diva" && !divaData)
     {
-        vidaData.destroy();
+        if(vidaData) vidaData.destroy();
         $('#renderer').diva(divaSettings);
         vidaData = null;
         divaData = $('#renderer').data('diva');
@@ -168,7 +161,7 @@ var switchToRenderer = function(which, newFile)
 
     if (which === "vida" && !vidaData)
     {
-        divaData.destroy();
+        if (divaData) divaData.destroy();
         vidaSettings.fileOnLoad = newFile.children[0].outerHTML;
         $('#renderer').vida(vidaSettings);
         divaData = null;
@@ -386,6 +379,7 @@ function updateVidaHighlights()
         "stroke": "#f00"
     });
 
+    vidaData.scrollToObject(facsPoints[activeFacsTime]);
     highlightTimeout = window.setTimeout(updateHighlights, (activeFacsTime - oldFacsTime) * 1000);
 }
 
