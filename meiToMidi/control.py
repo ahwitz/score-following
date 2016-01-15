@@ -3,6 +3,7 @@ from __future__ import division
 from subprocess import call, Popen
 import operator
 from math import ceil, floor, log
+import argparse
 
 # downloaded imports
 from music21 import *
@@ -20,15 +21,14 @@ import pdb
 import sys
 
 parser = argparse.ArgumentParser(description='Process some integers.')
-parser.add_argument('--mei', help='mei file to align')
+parser.add_argument('--mei', help='mei file to align', required=True)
 parser.add_argument('--audio', help='audio file to align')
 
 args = parser.parse_args()
 mei_file = args.mei
+audio_file = args.audio
 stem = 'salz-test-out'
 pp = pprint.PrettyPrinter(indent=4)
-
-print(args.mei, args.audio)
 
 MAX_FREQ = 300000000
 SMOOTH_DISTANCE = 5
@@ -49,24 +49,25 @@ timewise = timewiseMusic21(parsed)
 tempo = timewise.tempo
 # tempos = [z.secondsPerQuarter() for x, y, z in p.metronomeMarkBoundaries()] # I think this is when the piece has multiple tempos... I should comment my code better.
 
-
+#TODO: cli for this
 # write the midi, convert it to wav using Timidity
-parsed.write('midi', stem + '.midi')
-fp = open(stem + ".wav", "w")
-p1 = Popen(["timidity", stem + ".midi", "-Ow"], stdout=fp)
-wait = p1.wait() #async, make sure file is completely done
-fp.close()
+# parsed.write('midi', stem + '.midi')
+# fp = open(stem + ".wav", "w")
+# p1 = Popen(["timidity", stem + ".midi", "-Ow"], stdout=fp)
+# wait = p1.wait() #async, make sure file is completely done
+# fp.close()
 
 # load the pre-parsed instrument data
 for part in parsed[1:]: # parsed[0] is metadata; we don't want that
     # TODO: have it parse new instruments if it doesn't have it stored yet, also keep track of what soundfont/MIDI library has been parsed, if this changes redo them
     this_instrument = part[0].getInstrument(returnDefault = True).midiProgram or 0 # it's part of the measure object (part[0]) for some reason; if it's None we just want 0 (piano)
+
     instruments.append(this_instrument) 
     instruments_fft[this_instrument] = loadInstrument(this_instrument) # from midi_fourier.py
 
 # reload the wav, get the first track
 print("Reading wav.")
-sample_rate, data = wavfile.read(stem + '.wav')
+sample_rate, data = wavfile.read(audio_file)
 first_track = data.T[0] # first channel
 
 # chop off the spare -1 frames at the end
@@ -88,6 +89,7 @@ lastMidi = -1
 start_point = 0
 count = 0
 events = {}
+silent = True
 while start_point < audible_length: 
     # start_point is bumped up at the end of the loop
     end_point = start_point + window_length
@@ -127,8 +129,6 @@ while start_point < audible_length:
             hz_plot[idx] = sum(arr) / len(arr)
             idx += 1
 
-    print("\nFor quarter:", str(count), "(" + str(start_seconds), "to", str(end_seconds) + ")")
-
     # print the fourier graph if desired
     if img_debug:
         xf = numpy.linspace(0.0, plot_length, plot_length)
@@ -139,59 +139,65 @@ while start_point < audible_length:
 
     found_midi = {}
 
+    hz_max = numpy.argmax(hz_plot)
+    if hz_max > 0:
+        if silent:
+            timewise.startSilence = start_seconds
+        silent = False
+        
     # TODO: FUCKIN MAKE THIS BETTER
-    for x in range(0, 10):
-        hz_max = numpy.argmax(hz_plot)
-        max_midi = freqToMidi(hz_max) # get midi of it
-        #hz_plot[hz_max] = 0 # flip this to 0 so it's not max anymore
+        for x in range(0, 10):
+            hz_max = numpy.argmax(hz_plot)
+            max_midi = freqToMidi(hz_max) # get midi of it
+            #hz_plot[hz_max] = 0 # flip this to 0 so it's not max anymore
 
-        code, cur_midi = timewise.explain(max_midi, start_seconds, end_seconds)
+            code, cur_midi = timewise.explain(max_midi, start_seconds, end_seconds)
 
-        # if it doesn't know why, cur_midi will be None, set it manually
-        if code == Explanation.UNKNOWN:
-            cur_midi = max_midi
+            # if it doesn't know why, cur_midi will be None, set it manually
+            if code == Explanation.UNKNOWN:
+                cur_midi = max_midi
 
-        # if we did find it
-        if cur_midi in found_midi:
-            # if we have a lower code, keep it
-            if code.value < found_midi[cur_midi].value:
-                found_midi[cur_midi] = code
-            continue # we've already found it.
+            # if we did find it
+            if cur_midi in found_midi:
+                # if we have a lower code, keep it
+                if code.value < found_midi[cur_midi].value:
+                    found_midi[cur_midi] = code
+                continue # we've already found it.
 
-        # if we're still going (hasn't been found before), save the code
-        found_midi[cur_midi] = code
+            # if we're still going (hasn't been found before), save the code
+            found_midi[cur_midi] = code
 
-        # subtract the expected FFT samples for cur_midi from the plot
-        for overtone in instruments_fft[71][str(cur_midi)]:
-            overtone_hz = hz_max * int(overtone)
-            # find the max within 10 hz of the expected frequency, in case we're a bit off-center
-            local_max = numpy.argmax(hz_plot[overtone_hz - LOCAL_MAX_DISTANCE:overtone_hz + LOCAL_MAX_DISTANCE])
-            overtone_hz = overtone_hz - LOCAL_MAX_DISTANCE + local_max
-            hz_plot[overtone_hz] -= float(instruments_fft[71][str(cur_midi)][overtone]) * window_length
-            
-            # smooth out the graph to take care of the buildup to the peaks; makes it slope linearly between SMOOTH_DISTANCE Hz away and the peak
-            orig_lower = hz_plot[overtone_hz - SMOOTH_DISTANCE]
-            inc_lower = (hz_plot[overtone_hz] - orig_lower) / SMOOTH_DISTANCE
-            for adj in range(0, SMOOTH_DISTANCE + 1):
-                hz_plot[overtone_hz + (adj - SMOOTH_DISTANCE)] = orig_lower + (adj * inc_lower)
+            # subtract the expected FFT samples for cur_midi from the plot
+            for overtone in instruments_fft[0][str(cur_midi)]:
+                overtone_hz = hz_max * int(overtone)
+                # find the max within 10 hz of the expected frequency, in case we're a bit off-center
+                local_max = numpy.argmax(hz_plot[overtone_hz - LOCAL_MAX_DISTANCE:overtone_hz + LOCAL_MAX_DISTANCE])
+                overtone_hz = overtone_hz - LOCAL_MAX_DISTANCE + local_max
+                hz_plot[overtone_hz] -= float(instruments_fft[0][str(cur_midi)][overtone]) * window_length
+                
+                # smooth out the graph to take care of the buildup to the peaks; makes it slope linearly between SMOOTH_DISTANCE Hz away and the peak
+                orig_lower = hz_plot[overtone_hz - SMOOTH_DISTANCE]
+                inc_lower = (hz_plot[overtone_hz] - orig_lower) / SMOOTH_DISTANCE
+                for adj in range(0, SMOOTH_DISTANCE + 1):
+                    hz_plot[overtone_hz + (adj - SMOOTH_DISTANCE)] = orig_lower + (adj * inc_lower)
 
-            orig_upper = hz_plot[overtone_hz + SMOOTH_DISTANCE]
-            inc_upper = (hz_plot[overtone_hz] - orig_upper) / SMOOTH_DISTANCE
-            for adj in range(0, SMOOTH_DISTANCE + 1): # from -5 to 1
-                hz_plot[overtone_hz + adj] = orig_lower + ((SMOOTH_DISTANCE - adj) * inc_lower)
+                orig_upper = hz_plot[overtone_hz + SMOOTH_DISTANCE]
+                inc_upper = (hz_plot[overtone_hz] - orig_upper) / SMOOTH_DISTANCE
+                for adj in range(0, SMOOTH_DISTANCE + 1): # from -5 to 1
+                    hz_plot[overtone_hz + adj] = orig_lower + ((SMOOTH_DISTANCE - adj) * inc_lower)
 
-        if img_debug:
-            xf = numpy.linspace(0.0, plot_length, plot_length)
-            plt.plot(xf[:1500], hz_plot[:1500], 'r')
-            plt.title("Quarter " + str(x))
-            plt.savefig('imgout/test' + str(count) + "-" + str(x) + '.png')
-            plt.close()
+            if img_debug:
+                xf = numpy.linspace(0.0, plot_length, plot_length)
+                plt.plot(xf[:1500], hz_plot[:1500], 'r')
+                plt.title("Quarter " + str(x))
+                plt.savefig('imgout/test' + str(count) + "-" + str(x) + '.png')
+                plt.close()
 
-        # else:
-        #   found_hz.append(hz_max)
-        #   found_midi.append(cur_midi)
+            # else:
+            #   found_hz.append(hz_max)
+            #   found_midi.append(cur_midi)
 
-    print("\tNotes found:", found_midi)
+    print("For quarter:", str(count), "(" + str(start_seconds), "to", str(end_seconds) + "): Notes found:", found_midi)
 
     events[start_point / sample_rate] = found_midi
 

@@ -1,7 +1,7 @@
 var initTop, initLeft;
 var pageRef;
 
-var facsPoints = {}; //stores zone to when info
+var facsPoints = []; //stores zone to when info
 var facsTimes = []; //stores times as ints
 var facsIntToString = {}; //dict to change facsTimes to facsPoints keys
 var pageRefs = [];
@@ -43,7 +43,7 @@ var meixSettings =
     // 'disableShiftNew': true,
     'meiToIgnore': ['system'],
     // 'initializeWithFile': 'mei_data/holst2-onepage.xml'
-    'initializeWithFile': 'mei_data/krebs.mei'
+    'initializeWithFile': 'mei_data/krebs-out.mei'
     // 'initializeWithFile': 'meiToMidi/cdn-hsmu-m2149l4_002r.mei'
 };
 var plugins = ["js/meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
@@ -229,7 +229,7 @@ var insertNewTimepoint = function(parsed, targetUUID)
 
 var divaUpdate = function(facsDict)
 {
-    facsPoints = {};
+    facsPoints = [];
 
     var pageTitles = meiEditor.getLinkedPageTitles();
     var divaPages = Object.keys(pageTitles);
@@ -302,7 +302,7 @@ var divaUpdate = function(facsDict)
 
 var vidaUpdate = function(parsed)
 {
-    facsPoints = {};
+    facsPoints = [];
     var facsPointsStaging = {};
 
     // Get a list of <when> timepoints and order them
@@ -315,9 +315,11 @@ var vidaUpdate = function(parsed)
         var thisWhen = whenPoints[whenIdx];
         var whenID = thisWhen.getAttribute("xml:id");
         var whenAbs = thisWhen.getAttribute('absolute');
-        var floatWhen = (whenAbs.indexOf(":") > 0 ? stringTimeToFloat(whenAbs) : parseFloat(whenAbs));
+        var floatWhen = (whenAbs.indexOf(":") > -1 ? stringTimeToFloat(whenAbs) : parseFloat(whenAbs));
         if (parsed.querySelector("[*|when='" + whenID + "']"))
-            facsPointsStaging[floatWhen] = "#" + parsed.querySelector("[*|when='" + whenID + "']").getAttribute('xml:id');
+        {
+            facsPointsStaging[floatWhen.toString()] = "#" + parsed.querySelector("[*|when='" + whenID + "']").getAttribute('xml:id');
+        }
     }
 
     // Make sure they're in ascending order to speed up calculations later
@@ -326,9 +328,14 @@ var vidaUpdate = function(parsed)
     {
         return parseFloat(a) - parseFloat(b);
     });
+    console.log(facsInts);
     for (var idx = 0; idx < facsInts.length; idx++)
-        facsPoints[facsInts[idx]] = facsPointsStaging[facsInts[idx]];
+        facsPoints.push({
+            'time': facsInts[idx],
+            'selector': facsPointsStaging[facsInts[idx]]
+        });
 };
+
 
 function turnOffHighlights()
 {
@@ -358,14 +365,17 @@ function updateDivaHighlights()
 
 function updateVidaHighlights()
 {
+    //TODO: redo vida highlights
     var oldFacsTime = activeFacsTime;
     var activeHighlight = document.querySelector(facsPoints[activeFacsTime]);
     var nextHighlight;
 
+    console.log("highlighting", activeFacsTime, facsPoints[activeFacsTime]);
+
     var facsTimes = Object.keys(facsPoints);
     for (var x = 0; x < facsTimes.length; x++)
     {
-        if (facsTimes[x] > activeFacsTime)
+        if (parseFloat(facsTimes[x]) > parseFloat(activeFacsTime))
         {
             activeFacsTime = facsTimes[x];
             nextHighlight = document.querySelector(facsPoints[activeFacsTime]);
@@ -373,19 +383,20 @@ function updateVidaHighlights()
         }
     }
 
+    console.log("next highlight", activeFacsTime, facsPoints[activeFacsTime]);
+
     // If there was a previous highlight, paint it black
-    if (activeHighlight) $(activeHighlight).find("*").css({
+    if (activeHighlight) $(activeHighlight).find("*").addBack().css({
             "fill": "#000",
             "stroke": "#000"
         });
 
     // If there's a next highlight, paint it red
     if (!nextHighlight) return;
-    $(nextHighlight).find("*").css({ // if we're here, it exists
+    $(nextHighlight).find("*").addBack().css({ // if we're here, it exists
         "fill": "#f00",
         "stroke": "#f00"
     });
-
     highlightTimeout = window.setTimeout(updateHighlights, (activeFacsTime - oldFacsTime) * 1000);
 }
 

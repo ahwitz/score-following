@@ -62,6 +62,7 @@ class timewiseMusic21:
         for offset in offsets.keys():
             offsets[offset] = timePoint(offsets[offset], offset, self)
 
+        self.startSilence = 0
         self.tempo = tempo
         self.offsets = offsets
         self.offset_times = sorted(offsets.keys())
@@ -72,7 +73,7 @@ class timewiseMusic21:
         note_obj = sfNote(note_ref, note_dur, item_offset)
 
         #for cur_offset in range(0, int(note_dur)): #int conversion is OK cause we want to round down 
-        if offsets_ref.has_key(item_offset):
+        if item_offset in offsets_ref:
             offsets_ref[item_offset].append(note_obj)
         else:
             offsets_ref[item_offset] = [note_obj]
@@ -128,7 +129,7 @@ class timePoint:
         return self.__str__()
 
     def __str__(self):
-        return "[" + string.join([note.__str__() for note in self.notes], ", ") + "]"
+        return "[" + ", ".join([note.__str__() for note in self.notes]) + "]"
 
     # returns enum code for the explanation and the midi number it likely represents
     def explain(self, midi):
@@ -205,17 +206,17 @@ class sfNote:
         return self.__str__()
 
     def __str__(self):
-        return "Note " + str(self.midi) + " (" + string.join([str(x) + ": " + str(y) for x, y in self.seconds.iteritems()], " ") + ")"
+        return "Note " + str(self.midi) + " (" + " ".join([str(x) + ": " + str(y) for x, y in self.seconds.items()]) + ")"
         #return "Note " + str(self.midi) + " (" + str(self.offset) + " + " + str(self.duration) + ")"
 
 
 # freq to midi
 def freqToMidi(f):
-   return int(round(12 * log((f / 440), 2) + 69))
+    return int(round(12 * log((f / 440), 2) + 69))
 
 # midi to freq
 def midiToFreq(midi):
-   return 440/32 * 2**((midi - 9) / 12)
+    return 440/32 * 2**((midi - 9) / 12)
 
 # normalized frequency to Hz
 def normToHz(norm, seconds):
@@ -291,10 +292,12 @@ def addTimeline(timewise, mei_file, stem):
         staff = measure.findall("{http://www.music-encoding.org/ns/mei}staff")[0]
         layer = staff.findall("{http://www.music-encoding.org/ns/mei}layer")[0]
 
-        for item_id, item_offset in timewise.getNotelist().iteritems():
-            item = layer.xpath("//*[@f:id='" + item_id + "']", namespaces={'f': 'http://www.w3.org/XML/1998/namespace'})[0]
-            when = appendNewElement(timeline, 'when')
-            when.attrib['absolute'] = offsetToString(item_offset)
-            item.attrib['when'] = when.attrib['{http://www.w3.org/XML/1998/namespace}id']
+        for item_id, item_offset in timewise.getNotelist().items():
+            item = layer.xpath("//*[@f:id='" + str(item_id) + "']", namespaces={'f': 'http://www.w3.org/XML/1998/namespace'})
+            if len(item) > 0:
+                when = appendNewElement(timeline, 'when')
+                print(timewise.startSilence, item_offset)
+                when.attrib['absolute'] = offsetToString(item_offset + timewise.startSilence)
+                item[0].attrib['when'] = when.attrib['{http://www.w3.org/XML/1998/namespace}id']
 
-        tree.write(stem + "-out.mei", pretty_print=True)
+        tree.write("krebs-out.mei", pretty_print=True)
