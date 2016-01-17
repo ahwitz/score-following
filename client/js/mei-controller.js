@@ -1,14 +1,15 @@
 var initTop, initLeft;
 var pageRef;
 
-var facsPoints = []; //stores zone to when info
+var facsPoints = {}; //stores zone to when info
 var facsTimes = []; //stores times as ints
 var facsIntToString = {}; //dict to change facsTimes to facsPoints keys
 var pageRefs = [];
 var highlightMode = false;
-var highlightTimeout;
-var nextFacsTimeIdx = 0;
-var activeFacsTime = -1;
+var highlightInterval;
+var intervalIsRunning = false;
+var nextFacsTime = -1;
+var prevHighlightSelector;
 
 var meiEditor;
 var waveformAudioPlayer;
@@ -108,6 +109,8 @@ $(document).ready(function() {
 
         //we need the facs points to start and this will update zones
         regenerateTimePoints();
+
+        mei.Events.subscribe("JumpedToTime", updateHighlights);
     });
 });
 
@@ -222,7 +225,7 @@ var insertNewTimepoint = function(parsed, targetUUID)
 
 var divaUpdate = function(facsDict)
 {
-    facsPoints = [];
+    facsPoints = {};
 
     var pageTitles = meiEditor.getLinkedPageTitles();
     var divaPages = Object.keys(pageTitles);
@@ -295,7 +298,7 @@ var divaUpdate = function(facsDict)
 
 var vidaUpdate = function(parsed)
 {
-    facsPoints = [];
+    facsPoints = {};
     var facsPointsStaging = {};
 
     // Get a list of <when> timepoints and order them
@@ -308,11 +311,9 @@ var vidaUpdate = function(parsed)
         var thisWhen = whenPoints[whenIdx];
         var whenID = thisWhen.getAttribute("xml:id");
         var whenAbs = thisWhen.getAttribute('absolute');
-        var floatWhen = (whenAbs.indexOf(":") > -1 ? stringTimeToFloat(whenAbs) : parseFloat(whenAbs));
+        var floatWhen = (whenAbs.indexOf(":") > 0 ? stringTimeToFloat(whenAbs) : parseFloat(whenAbs));
         if (parsed.querySelector("[*|when='" + whenID + "']"))
-        {
-            facsPointsStaging[floatWhen.toString()] = "#" + parsed.querySelector("[*|when='" + whenID + "']").getAttribute('xml:id');
-        }
+            facsPointsStaging[floatWhen] = "#" + parsed.querySelector("[*|when='" + whenID + "']").getAttribute('xml:id');
     }
 
     // Make sure they're in ascending order to speed up calculations later
@@ -321,22 +322,22 @@ var vidaUpdate = function(parsed)
     {
         return parseFloat(a) - parseFloat(b);
     });
-    console.log(facsInts);
+    
     for (var idx = 0; idx < facsInts.length; idx++)
-        facsPoints.push({
-            'time': facsInts[idx],
-            'selector': facsPointsStaging[facsInts[idx]]
-        });
+        facsPoints[parseFloat(facsInts[idx])] = facsPointsStaging[facsInts[idx]];
+    facsTimes = Object.keys(facsPoints);
 };
-
 
 function turnOffHighlights()
 {
-    window.clearTimeout(highlightTimeout);
+    window.clearInterval(highlightInterval);
+    intervalIsRunning = false;
 }
 
-function updateDivaHighlights()
+function updateDivaHighlights(overrideTime)
 {
+    /**
+     * TODO: reimplement
     var currentFacsTime = facsTimes[nextFacsTimeIdx];
     var string = facsIntToString[currentFacsTime];
     meiEditor.deselectAllHighlights();
@@ -349,50 +350,53 @@ function updateDivaHighlights()
 
     nextFacsTimeIdx++;
     var nextFacsTime = facsTimes[nextFacsTimeIdx];
+    */
 
-    var msDifference = (nextFacsTime - currentFacsTime) * 1000;
-
-    window.clearTimeout(highlightTimeout);
-    highlightTimeout = window.setTimeout(updateHighlights, msDifference);
+    if (!intervalIsRunning)
+    {
+        highlightInterval = window.setInterval(updateHighlights, 100);
+        intervalIsRunning = true;
+    }
 }
 
-function updateVidaHighlights()
+function updateVidaHighlights(overrideTime)
 {
-    //TODO: redo vida highlights
-    var oldFacsTime = activeFacsTime;
-    var activeHighlight = document.querySelector(facsPoints[activeFacsTime]);
-    var nextHighlight;
+    var activeAudioTime = (parseFloat(overrideTime) || waveformAudioPlayer.currentTimeToPlaybackTime());
+    // if we haven't passed the next update, forget this and just wait until the next iteration
+    if ((overrideTime === undefined) && (activeAudioTime < nextFacsTime)) return;
 
-    console.log("highlighting", activeFacsTime, facsPoints[activeFacsTime]);
-
-    var facsTimes = Object.keys(facsPoints);
-    for (var x = 0; x < facsTimes.length; x++)
-    {
-        if (parseFloat(facsTimes[x]) > parseFloat(activeFacsTime))
+    // find the next greatest time and store it
+    var facsIdx = 0;
+    for (facsIdx; facsIdx < facsTimes.length; facsIdx++)
+        if (parseFloat(facsTimes[facsIdx]) > activeAudioTime)
         {
-            activeFacsTime = facsTimes[x];
-            nextHighlight = document.querySelector(facsPoints[activeFacsTime]);
+            nextFacsTime = facsTimes[facsIdx];
             break;
         }
-    }
 
-    console.log("next highlight", activeFacsTime, facsPoints[activeFacsTime]);
+    // track which highlights need to be added
+    var activeFacsTime = facsTimes[facsIdx - 1];
+    var activeHighlight = document.querySelector(facsPoints[activeFacsTime]);
 
     // If there was a previous highlight, paint it black
-    if (activeHighlight) $(activeHighlight).find("*").addBack().css({
+    if (prevHighlightSelector) $(prevHighlightSelector).find("*").css({
             "fill": "#000",
             "stroke": "#000"
         });
 
-    // If there's a next highlight, paint it red
-    if (!nextHighlight) return;
-    $(nextHighlight).find("*").addBack().css({ // if we're here, it exists
+    // Paint the current highlight red and scroll to it
+    $(activeHighlight).find("*").css({
         "fill": "#f00",
         "stroke": "#f00"
     });
-
+    prevHighlightSelector = activeHighlight;
     vidaData.scrollToObject(facsPoints[activeFacsTime]);
-    highlightTimeout = window.setTimeout(updateHighlights, (activeFacsTime - oldFacsTime) * 1000);
+
+    if (!intervalIsRunning)
+    {
+        highlightInterval = window.setInterval(updateHighlights, 100);
+        intervalIsRunning = true;
+    }
 }
 
 function createDefaultMEI()

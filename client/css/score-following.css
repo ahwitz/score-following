@@ -9,6 +9,7 @@ body, html{
     width: calc(50% - 10px);
     height: 190px;
 }
+
 #mei{
     width: 50%;
     max-width: 50%;

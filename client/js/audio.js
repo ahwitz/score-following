@@ -249,6 +249,7 @@ function hasOwnProperty(obj, prop) {
                 var lengthIn = e.pageX - $(this).offset().left;
 
                 audioSourceStartPoint = (lengthIn / totalLength) * audioBuffer.duration;
+                mei.Events.publish("JumpedToTime", [audioSourceStartPoint]);
 
                 startAudioPlayback();
             });
@@ -282,6 +283,13 @@ function hasOwnProperty(obj, prop) {
                         meiUpdateStartFunction(currentTimeToPlaybackTime());
                     }
                 }
+            });
+
+            $(window).on('resize', function(e)
+            {
+                $("#playback-canvas").offset($("#waveform-canvas").offset());
+                $("#playback-canvas").width($("#waveform-canvas").width());
+                $("#playback-canvas").height($("#waveform-canvas").height());
             });
         }
 
@@ -329,7 +337,8 @@ function hasOwnProperty(obj, prop) {
             canvasWidth = $("#waveform").width() - 20;
             var fileInput = document.querySelector('input[type="file"]');
 
-            fileInput.addEventListener('change', function(e) {  //
+            fileInput.addEventListener('change', function(e) {
+                if (this.files.length === 0) return;
                 var reader = new FileReader();
                 reader.onload = function(e) {
                     initSound(this.result);
