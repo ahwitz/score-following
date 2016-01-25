@@ -43,24 +43,18 @@ pp = pprint.PrettyPrinter(indent=4)
 MAX_FREQ = 300000000 # not actually that important, just needs to be large
 SMOOTH_DISTANCE = 5 # Hz to smooth out each peak by 
 LOCAL_MAX_DISTANCE = 10 # distance from each expected peak to search for the actual value
-NUM_PEAKS = 10 # number of top peaks to account for in each window
+NUM_PEAKS = 1 # number of top peaks to account for in each window, to be defined later
 wav_debug = False # debugs by printing out wavs of each window TODO: CLI
 img_debug = False # debugs by printing out waveform graphs of each window TODO: CLI
 if img_debug:
     import matplotlib.pyplot as plt
-
-# setting various variables that will be used later
-seconds = audible_length / sample_rate # length of the piece in seconds
-window_length = sample_rate # length of the window to use TODO: CLI
-window_seconds = window_length / sample_rate # length of each window in seconds
-sample_offset = int(floor(audible_length / (seconds / tempo))) # distance between window beginnings TODO: CLI
-plot_length = min(window_length / 2, MAX_FREQ) # length of the fourier plot, window_length/2 because the fourier plot is mirrored
 
 # Parse MEI and WAV
 print ("Parsing MEI...")
 instruments_fft = {} # eventually, fft data archived by midi_fourier.py
 parsed = converter.parseFile(mei_file, None, 'mei', True) # parsed MEI file as a Music21 score
 timewise = timewiseMusic21(parsed) # local format
+NUM_PEAKS = timewise.findMaxPeaks()
 tempo = timewise.tempo # default tempo of the piece
 # tempos = [z.secondsPerQuarter() for x, y, z in p.metronomeMarkBoundaries()] # When the piece has multiple tempos
 
@@ -83,6 +77,13 @@ first_track = data.T[0] # first channel
 audible_length = len(first_track) - 1
 while first_track[audible_length] == -1:
     audible_length -= 1
+
+# setting various variables that will be used later
+seconds = audible_length / sample_rate # length of the piece in seconds
+window_length = sample_rate # length of the window to use TODO: CLI
+window_seconds = window_length / sample_rate # length of each window in seconds
+sample_offset = int(floor(audible_length / (seconds / tempo))) # distance between window beginnings TODO: CLI
+plot_length = min(window_length / 2, MAX_FREQ) # length of the fourier plot, window_length/2 because the fourier plot is mirrored
 
 # Alignment time!
 start_point = 0 # current start frame

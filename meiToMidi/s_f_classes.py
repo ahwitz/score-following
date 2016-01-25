@@ -36,48 +36,55 @@ def print_explanation_guide():
 #TODO: I dunno, reorganize the objects to be timewise or something because the True/None thing doesn't actually work...
 class timewiseMusic21:
     def __init__(self, parsed):
-        tempo = parsed.metronomeMarkBoundaries()[0][2].secondsPerQuarter() # in seconds per quarter
+        self.tempo = parsed.metronomeMarkBoundaries()[0][2].secondsPerQuarter() # in seconds per quarter
+        self.offsets = {} # timepoint in seconds: [timewiseNote, timewiseNote]
+        self.startSilence = 0
         measures = parsed[1]
-        offsets = {}
+
         for this_measure in measures:
             measure_offset = this_measure.offset
+            # for each voice in each measure, grab all MIDI note values that will be present
             voices = [x for x in this_measure if isinstance(x, stream.Voice)]
             for this_voice in voices:
                 for item in this_voice:
                     if isinstance(item, note.Note):
-                        self.processNote(item, tempo, measure_offset, offsets)
+                        self.processNote(item, measure_offset)
                     elif isinstance(item, chord.Chord):
                         for this_note in item: 
-                            self.processNote(this_note, tempo, measure_offset, offsets)
+                            self.processNote(this_note, measure_offset)
                     elif not isinstance(item, note.Rest):
                         print("Found an unexpected", item)
 
-        for offset in offsets.keys():
-            offsets[offset] = timePoint(offsets[offset], offset, self)
+        # make a timePoint of all the timewiseNotes at a given offset time
+        for offset in self.offsets.keys():
+            self.offsets[offset] = timewiseTimepoint(self.offsets[offset], offset, self)
 
-        self.startSilence = 0
-        self.tempo = tempo
-        self.offsets = offsets
-        self.offset_times = sorted(offsets.keys())
+        self.offset_times = sorted(self.offsets.keys())
 
-    def processNote(self, note_ref, tempo, measure_offset, offsets_ref):
-        note_dur = max(1.0, note_ref.duration.quarterLength) * tempo
-        item_offset = (note_ref.offset + measure_offset) * tempo
-        note_obj = sfNote(note_ref, note_dur, item_offset)
+    # Finds the offset with the longest number of MIDI notes
+    def findMaxPeaks(self):
+        return max([len(self.offsets[timept].midis) for timept in self.offsets])
+
+    # Used to generate offset dictionary
+    def processNote(self, note_ref, measure_offset):
+        item_offset = (note_ref.offset + measure_offset) # in quarters
+        note_obj = timewiseNote(note_ref)
 
         #for cur_offset in range(0, int(note_dur)): #int conversion is OK cause we want to round down 
-        if item_offset in offsets_ref:
-            offsets_ref[item_offset].append(note_obj)
+        if item_offset in self.offsets:
+            self.offsets[item_offset].append(note_obj)
         else:
-            offsets_ref[item_offset] = [note_obj]
+            self.offsets[item_offset] = [note_obj]
 
+    # explains a given MIDI pitch that is present between start_seconds and end_seconds
     def explain(self, midi_in, start_seconds, end_seconds):
         code = Explanation.UNKNOWN
         # TODO: eventually save alt codes
         midi_for_code = midi_in
         alt_midis = []
-        for offset in self.offset_times:                
+        for offset in self.offset_times:
             if offset >= start_seconds and offset <= end_seconds:
+                # for each active offset, explain a given note
                 code_out, midi_out = self.offsets[offset].explain(midi_in)
             else:
                 continue
@@ -100,6 +107,7 @@ class timewiseMusic21:
 
         return code, midi_for_code
 
+    # for debug
     def getNotelist(self):
         note_id_dict = {}
         for time_point in self.offsets:
@@ -108,14 +116,16 @@ class timewiseMusic21:
 
         return note_id_dict
 
-
-
-class timePoint:
+class timewiseTimepoint:
     def __init__(self, note_list, offset, timewise_ref):
+        # from input
         self.notes = note_list
-        self.midis = {note.midi: note for note in note_list}
-        self.offset = offset
+        self.midis = [note.midi for note in note_list]
         self.timewise_ref = timewise_ref
+
+        self.expected_offset = offset
+        self.found_offset = None
+        self.confidence = 0
         #TODO : ref to parent timewise so the newer/older Explanations can come from here instead of timewise
 
     def __repr__(self):
@@ -179,25 +189,28 @@ class timePoint:
 
         return Explanation.UNKNOWN, None
 
-
     # tells a note that it was accounted for in a particular second
     def register_second(self, explanation, midi, offset):
         self.midis[midi].seconds[int(offset)] = True
         return explanation, midi
 
-
-class sfNote:
-    def __init__(self, note_ref, duration, offset):
+class timewiseNote:
+    def __init__(self, note_ref):
         self.midi = note_ref.pitch.midi
         self.id = note_ref.id
-        self.duration = duration
-        self.meiOffset = offset
-        # self.seconds is an array of all seconds that the note sounds in - we want string rounded because 1.2 to 3.9 will still be 1, 2, and 3
-        self.seconds = {x: None for x in range(int(offset), int(offset + duration) + 1)}
+        self.expected_duration = note_ref.duration.quarterLength # in quarters
+        self.found_duration = None
+
+        # detected offset: strength
+        self.offset_strengths = {}
+
+        # for parsing location in audio
+        self.detected = False
+        self.tracking = False
+        self.confidence = 0
         
     def __repr__(self):
         return self.__str__()
 
     def __str__(self):
-        return "Note " + str(self.midi) + " (" + " ".join([str(x) + ": " + str(y) for x, y in self.seconds.items()]) + ")"
-        #return "Note " + str(self.midi) + " (" + str(self.offset) + " + " + str(self.duration) + ")"
+        return "Note " + str(self.midi) + ", duration " + str(self.expected_duration)
