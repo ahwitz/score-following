@@ -82,7 +82,7 @@ while first_track[audible_length] == -1:
 seconds = audible_length / sample_rate # length of the piece in seconds
 window_length = sample_rate # length of the window to use TODO: CLI
 window_seconds = window_length / sample_rate # length of each window in seconds
-sample_offset = int(floor(audible_length / (seconds / tempo))) # distance between window beginnings TODO: CLI
+sample_offset = int(floor(sample_rate / 8))#int(floor(audible_length / (seconds / tempo))) # distance between window beginnings TODO: CLI
 plot_length = min(window_length / 2, MAX_FREQ) # length of the fourier plot, window_length/2 because the fourier plot is mirrored
 
 # Alignment time!
@@ -90,7 +90,7 @@ start_point = 0 # current start frame
 count = 0 # nth window, used for debug
 events = {} # list of things that happened
 silent = True # tracks while the music is silent at the beginning
-print("Aligning with window size of", str(window_length) + "...")
+print("Aligning with window size of", str(window_length) + ", sample offset of", str(sample_offset) + "...")
 
 while start_point < audible_length: 
     # start_point is bumped up at the end of the loop

@@ -2,6 +2,8 @@ from __future__ import division
 from enum import Enum
 from music21 import *
 
+from s_f_utils import *
+
 import pdb
 
 # possible explanations for why we'd be picking up a given MIDI note in a certain timeframe
@@ -39,21 +41,22 @@ class timewiseMusic21:
         self.tempo = parsed.metronomeMarkBoundaries()[0][2].secondsPerQuarter() # in seconds per quarter
         self.offsets = {} # timepoint in seconds: [timewiseNote, timewiseNote]
         self.startSilence = 0
-        measures = parsed[1]
 
-        for this_measure in measures:
-            measure_offset = this_measure.offset
-            # for each voice in each measure, grab all MIDI note values that will be present
-            voices = [x for x in this_measure if isinstance(x, stream.Voice)]
-            for this_voice in voices:
-                for item in this_voice:
-                    if isinstance(item, note.Note):
-                        self.processNote(item, measure_offset)
-                    elif isinstance(item, chord.Chord):
-                        for this_note in item: 
-                            self.processNote(this_note, measure_offset)
-                    elif not isinstance(item, note.Rest):
-                        print("Found an unexpected", item)
+        parts = [x for x in parsed if isinstance(x, stream.Part)]
+        for part in parts:
+            for this_measure in part:
+                measure_offset = this_measure.offset
+                # for each voice in each measure, grab all MIDI note values that will be present
+                voices = [x for x in this_measure if isinstance(x, stream.Voice)]
+                for this_voice in voices:
+                    for item in this_voice:
+                        if isinstance(item, note.Note):
+                            self.processNote(item, measure_offset)
+                        elif isinstance(item, chord.Chord):
+                            for this_note in item: 
+                                self.processNote(this_note, measure_offset)
+                        elif not isinstance(item, note.Rest):
+                            print("Found an unexpected", item)
 
         # make a timePoint of all the timewiseNotes at a given offset time
         for offset in self.offsets.keys():
@@ -112,7 +115,7 @@ class timewiseMusic21:
         note_id_dict = {}
         for time_point in self.offsets:
             for sf_note in self.offsets[time_point].notes:
-                note_id_dict[sf_note.id] = sf_note.offset
+                note_id_dict[sf_note.id] = sf_note.expected_offset
 
         return note_id_dict
 
@@ -138,11 +141,11 @@ class timewiseTimepoint:
     def explain(self, midi):
         # first, if the note is present, we've found it
         if midi in self.midis:
-            return self.register_second(Explanation.PRESENT, midi, self.offset)
+            return self.register_second(Explanation.PRESENT, midi, self.expected_offset)
 
         # else if it's the first octave overtone of something
         if (midi - 12) in self.midis:
-            return self.register_second(Explanation.OCTAVE_UP, midi - 12, self.offset)
+            return self.register_second(Explanation.OCTAVE_UP, midi - 12, self.expected_offset)
 
         # else if it's another overtone
         hz = midiToFreq(midi)
@@ -150,21 +153,21 @@ class timewiseTimepoint:
             if (hz % midiToFreq(this_midi)) == 0:
                 #TODO: is overtone of multiple? Higher-weighted or necessary at all?
                 #TODO: call in instrument_fft data to see how likely it is
-                return self.register_second(Explanation.OVERTONE, this_midi, self.offset)
+                return self.register_second(Explanation.OVERTONE, this_midi, self.expected_offset)
 
         # see if it's an octave below something? TODO: would this ever happen?
         if (midi + 12) in self.midis:
-            return self.register_second(Explanation.OCTAVE_DOWN, midi + 12, self.offset)
+            return self.register_second(Explanation.OCTAVE_DOWN, midi + 12, self.expected_offset)
 
         # see if there was an accidental error
         if (midi + 1) in self.midis:
-            return self.register_second(Explanation.ACCIDENTAL, midi + 1, self.offset)
+            return self.register_second(Explanation.ACCIDENTAL, midi + 1, self.expected_offset)
         if (midi - 1) in self.midis:
-            return self.register_second(Explanation.ACCIDENTAL, midi - 1, self.offset)
+            return self.register_second(Explanation.ACCIDENTAL, midi - 1, self.expected_offset)
 
-        idx = self.timewise_ref.offset_times.index(self.offset) - 1
+        idx = self.timewise_ref.offset_times.index(self.expected_offset) - 1
         last_timepoint = self.timewise_ref.offsets[self.timewise_ref.offset_times[idx]]
-        last_code, last_midi = last_timepoint.rec_explain(midi, self.offset)
+        last_code, last_midi = last_timepoint.rec_explain(midi, self.expected_offset)
 
         if last_code.value < Explanation.UNKNOWN.value:
             return last_code, last_midi
