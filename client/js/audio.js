@@ -62,10 +62,10 @@ function hasOwnProperty(obj, prop) {
         //writes an error in the error div
         function writeError (text)
         {
-            $("#error").text(text);
+            $(options.parentID + " .error").text(text);
             errorTimeout = setTimeout(function()
             { 
-                $("#error").text(""); 
+                $(options.parentID + " .error").text(""); 
             }, ERROR_TIMEOUT_TIMER);
         }
 
@@ -124,10 +124,10 @@ function hasOwnProperty(obj, prop) {
         //Creates playback canvas (the moving red bar)
         function renderPlaybackCanvas()
         {
-            pCanvas = createCanvas("#error", canvasWidth, canvasHeight, "playback-canvas");
+            pCanvas = createCanvas(options.parentID + " .error", canvasWidth, canvasHeight, options.parentIdentifier + "-playback-canvas");
             pCanvas.style.position = "absolute";
             pCanvas.style.zIndex = wCanvas.style.zIndex + 1;
-            $("#playback-canvas").offset($("#waveform-canvas").offset());
+            $(pCanvas).offset($(wCanvas).offset());
             pCanvasContext = pCanvas.getContext('2d');
             pCanvasContext.fillStyle = 'rgba(0, 0, 0, 0)';
             pCanvasContext.fillRect(0,0,canvasWidth,canvasHeight);
@@ -206,9 +206,9 @@ function hasOwnProperty(obj, prop) {
                 SAMPLE_RATE = buffer.sampleRate;
                 renderWaveformCanvas();
                 renderPlaybackCanvas();
-                $('#play-button').prop('disabled', false);
-                $('#pause-button').prop('disabled', false);
-                $('#source-volume').prop('disabled', false);
+                $(options.parentID + ' .play-button').prop('disabled', false);
+                $(options.parentID + ' .pause-button').prop('disabled', false);
+                $(options.parentID + ' .source-volume').prop('disabled', false);
                 initListeners();
             }, function(e) {
                 console.log('Error decoding file', e);
@@ -218,7 +218,7 @@ function hasOwnProperty(obj, prop) {
         //Initializes keyboard listeners
         function initListeners() 
         {
-            $("#play-button").on('click', function()
+            $(options.parentID + " .play-button").on('click', function()
             {
                 if(audioBuffer === null)
                 {
@@ -233,7 +233,7 @@ function hasOwnProperty(obj, prop) {
                 startAudioPlayback();
             });
 
-            $("#pause-button").on('click', function()
+            $(options.parentID + " .pause-button").on('click', function()
             {
                 if (audioSource === undefined || audioSource.isPlaying === false) 
                 {
@@ -287,9 +287,9 @@ function hasOwnProperty(obj, prop) {
 
             $(window).on('resize', function(e)
             {
-                $("#playback-canvas").offset($("#waveform-canvas").offset());
-                $("#playback-canvas").width($("#waveform-canvas").width());
-                $("#playback-canvas").height($("#waveform-canvas").height());
+                $(pCanvas).offset($(wCanvas).offset());
+                $(pCanvas).width($(wCanvas).width());
+                $(pCanvas).height($(wCanvas).height());
             });
         }
 
@@ -327,15 +327,18 @@ function hasOwnProperty(obj, prop) {
         //Actual init function for the entire object
         function init()
         {
-            $("#waveform").append('<button id="play-button" disabled>Play</button>' +
-                '<button id="pause-button" disabled>Pause</button>' +
-                '&nbsp;&nbsp;Volume: <input id="source-volume" type="range" min="0" max="1" step="0.01" value="' + INITIAL_GAIN_VALUE.toString() + '" disabled/>' +
-                '&nbsp;&nbsp;Playback mode: <input type="checkbox" id="playback-checkbox">' +
-                '<span id="autoscroll-wrapper" style="display:none">&nbsp;&nbsp;Autoscroll: <input type="checkbox" id="autoscroll-checkbox"></span><br>' +
-                '<input id="file-input" type="file" accept="audio/*"><br>' +
-                '<div id="error"></div><br>');
-            canvasWidth = $("#waveform").width() - 20;
-            var fileInput = document.querySelector('input[type="file"]');
+            options.parentIdentifier = options.parentObject.parent().attr('id');
+            options.parentObject.attr('id', options.parentIdentifier + '-waveform');
+            options.parentID = "#" + options.parentObject.attr('id');
+            options.parentObject.append('<button class="play-button" disabled>Play</button>' +
+                '<button class="pause-button" disabled>Pause</button>' +
+                '&nbsp;&nbsp;Volume: <input class="source-volume" type="range" min="0" max="1" step="0.01" value="' + INITIAL_GAIN_VALUE.toString() + '" disabled/>' +
+                '&nbsp;&nbsp;Playback mode: <input type="checkbox" class="playback-checkbox">' +
+                '<span class="autoscroll-wrapper" style="display:none">&nbsp;&nbsp;Autoscroll: <input type="checkbox" id="autoscroll-checkbox"></span><br>' +
+                '<input class="file-input" type="file" accept="audio/*"><br>' +
+                '<div class="error"></div><br>');
+            canvasWidth = $(options.parentID).width() - 20;
+            var fileInput = document.querySelector(options.parentID + " .file-input");
 
             fileInput.addEventListener('change', function(e) {
                 if (this.files.length === 0) return;
@@ -346,16 +349,16 @@ function hasOwnProperty(obj, prop) {
                 reader.readAsArrayBuffer(this.files[0]);
             }, false);
 
-            $("#playback-checkbox").on('change', function(e)
+            $(options.parentID + " .playback-checkbox").on('change', function(e)
             {
-                playbackMode = $("#playback-checkbox").is(":checked");
+                playbackMode = $(options.parentID + " .playback-checkbox").is(":checked");
             });
 
-            $("#source-volume").on('change', function(e){
-                if(gainMod) gainMod.gain.value = $("#source-volume").val();
+            $(options.parentID + " .source-volume").on('change', function(e){
+                if(gainMod) gainMod.gain.value = $(options.parentID + " .source-volume").val();
             });
 
-            wCanvas = createCanvas("#error", canvasWidth, canvasHeight, "waveform-canvas"); //waveform canvas
+            wCanvas = createCanvas(options.parentID + " .error", canvasWidth, canvasHeight, options.parentIdentifier + "-waveform-canvas"); //waveform canvas
             wCanvasContext = wCanvas.getContext('2d'); 
         }
 

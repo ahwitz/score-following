@@ -4,9 +4,9 @@ body, html{
     margin: 0px;
 }
 
-#waveform{
+.waveform{
     padding: 5px;
-    width: calc(50% - 10px);
+    /*width: calc(50% - 10px);*/
     height: 190px;
 }
 
@@ -14,8 +14,8 @@ body, html{
     width: 50%;
     max-width: 50%;
     top: 200px;
-    max-height: calc(100% - 200px);
-    height: calc(100% - 200px);
+    /*max-height: calc(100% - 200px);*/
+    height: calc(100%);
     float: left;
 }
 #renderer{
@@ -35,7 +35,7 @@ body, html{
     position: absolute;
     z-index: 101;
 }
-#source-volume{
+.source-volume{
     display: inline;
     width: 200px;
 }

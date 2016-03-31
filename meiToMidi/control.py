@@ -54,7 +54,7 @@ print ("Parsing MEI...")
 instruments_fft = {} # eventually, fft data archived by midi_fourier.py
 parsed = converter.parseFile(mei_file, None, 'mei', True) # parsed MEI file as a Music21 score
 timewise = timewiseMusic21(parsed) # local format
-NUM_PEAKS = timewise.findMaxPeaks()
+NUM_PEAKS = 30 #timewise.findMaxPeaks()
 tempo = timewise.tempo # default tempo of the piece
 # tempos = [z.secondsPerQuarter() for x, y, z in p.metronomeMarkBoundaries()] # When the piece has multiple tempos
 
@@ -71,6 +71,7 @@ for part in parsed[1:]: # parsed[0] is metadata; we don't want that
 # reload the wav, get the first track
 print("Reading wav...")
 sample_rate, data = wavfile.read(audio_file)
+print(sample_rate, data)
 first_track = data.T[0] # first channel
 
 # chop off any empty frames from the end
@@ -140,7 +141,7 @@ while start_point < audible_length:
         plt.savefig('imgout/test' + str(count) + '.png')
         plt.close()
 
-    found_midi = {} # list of found notes and their explanations
+    found_midi = [] #{} # list of found notes and their explanations
     hz_max = numpy.argmax(hz_plot) # max frequency
     if hz_max > 0: # if there's any volume in this frame
         if silent: # and it was silent before, cap the silence
@@ -153,23 +154,29 @@ while start_point < audible_length:
             max_midi = freqToMidi(hz_max) # get midi o
 
             # run the code to explain what function the max pitch was
-            code, cur_midi = timewise.explain(max_midi, start_seconds, end_seconds)
+            # code, cur_midi = timewise.explain(max_midi, start_seconds, end_seconds)
 
-            # if it doesn't know why, cur_midi will be None, set it manually
-            if code == Explanation.UNKNOWN:
-                cur_midi = max_midi
+            # # if it doesn't know why, cur_midi will be None, set it manually
+            # if code == Explanation.UNKNOWN:
+            #     cur_midi = max_midi
 
-            # if we did find it
-            if cur_midi in found_midi:
-                # if we have a lower code, keep it
-                if code.value < found_midi[cur_midi].value:
-                    found_midi[cur_midi] = code
-                continue # we've already found it.
+            # # if we did find it
+            # if cur_midi in found_midi:
+            #     # if we have a lower code, keep it
+            #     if code.value < found_midi[cur_midi].value:
+            #         found_midi[cur_midi] = code
+            #     continue # we've already found it.
 
             # if we're still going (hasn't been found before), save the code
-            found_midi[cur_midi] = code
+            cur_midi = max_midi
+            # found_midi[cur_midi] = code
+            if cur_midi not in found_midi:
+                found_midi.append(cur_midi)
 
             # subtract the expected FFT samples for cur_midi from the plot
+            if cur_midi < 12:
+                break
+
             for overtone in instruments_fft[0][str(cur_midi)]:
                 overtone_hz = hz_max * int(overtone)
                 # find the max within 10 hz of the expected frequency, in case we're a bit off-center
@@ -195,11 +202,9 @@ while start_point < audible_length:
                 plt.savefig('imgout/test' + str(count) + "-" + str(x) + '.png')
                 plt.close()
 
-            # else:
-            #   found_hz.append(hz_max)
-            #   found_midi.append(cur_midi)
+        print(str(start_seconds) + ": " + str([midiToNote(x) for x in found_midi]))
 
-    print("For window:", str(count), "(" + str(start_seconds), "to", str(end_seconds) + "): Notes found:", found_midi)
+    #print("For window:", str(count), "(" + str(start_seconds), "to", str(end_seconds) + "): Notes found:", found_midi)
 
     events[start_point / sample_rate] = found_midi
 

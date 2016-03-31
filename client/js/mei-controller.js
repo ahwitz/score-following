@@ -39,10 +39,11 @@ var element = "#mei";
 var meixSettings = 
 {
     'meiEditorLocation': 'js/meix.js/',
+    'headless': true,
     'divaInstance': divaData,
     'skipXMLValidator': true,
     'meiToIgnore': ['system'],
-    'initializeWithFile': 'mei_data/krebs.mei'
+    'initializeWithFiles': ['mei_data/bach.mei', 'mei_data/krebs.mei']
 };
 var plugins = ["js/meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
 
@@ -54,15 +55,26 @@ var vidaSettings =
 };
 
 $(document).ready(function() {
-    $('#waveform').wap({}); 
-    waveformAudioPlayer = $("#waveform").data('wap');
 
     meiEditor = new MeiEditor(element, meixSettings, plugins);
     $(window).on('meiEditorLoaded', function(){
         meiEditor = $("#mei").data('AceMeiEditor');
-        if(!meixSettings.hasOwnProperty('initializeWithFile'))
-            createDefaultMEI();
-        
+        var titles = meiEditor.getPageTitles();
+        for(var tIdx = 0; tIdx < titles.length; tIdx++)
+        {
+            var element = meiEditor.getPageData(titles[tIdx]).el;
+            element.innerHTML = "<div class='waveform'></div>";
+            var activeWaveform = element.querySelector('.waveform');
+            $(activeWaveform).wap({});
+            waveformAudioPlayer = $(activeWaveform).data('wap');
+        }
+
+        // var waveformDivs = document.getElementsByClassName("waveform");
+        // for (var wIdx = 0; w)
+        // console.log($('.waveform'))
+        // $('.waveform').wap({}); 
+        // waveformAudioPlayer = $($(".waveform")[0]).data('wap');
+
         // meiEditor.events.subscribe("PageEdited", regenerateTimePoints);
         $("#playback-checkbox").on('change', function(e)
         {
@@ -101,6 +113,16 @@ $(document).ready(function() {
         });
 
         meiEditor.events.subscribe("ActivePageChanged", function(filename) {
+            if (divaData)
+                console.log("would switch Diva");
+            else if (vidaData)
+            {
+                console.log(vidaData);
+                vidaData.changeMusic(meiEditor.getPageData(filename).parsed.outerHTML);
+                vidaUpdate(meiEditor.getPageData(filename).parsed);
+            }
+            console.log(meiEditor.getPageData(filename).parsed);
+            // vidaUpdate(meiEditor.getPageData(filename).parsed);
             console.log(filename, meiEditor.isActivePageLinked(filename));
         });
         meiEditor.events.subscribe("NewFile", function(a, filename) {
