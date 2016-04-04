@@ -4,12 +4,6 @@ body, html{
     margin: 0px;
 }
 
-.waveform{
-    padding: 5px;
-    /*width: calc(50% - 10px);*/
-    height: 190px;
-}
-
 #mei{
     width: 50%;
     max-width: 50%;
@@ -35,7 +29,19 @@ body, html{
     position: absolute;
     z-index: 101;
 }
-.source-volume{
+
+.waveform{
+    padding: 5px;
+    /*width: calc(50% - 10px);*/
+    height: 190px;
+    position:relative;
+}
+
+.waveform .source-volume{
     display: inline;
     width: 200px;
+}
+
+.waveform canvas {
+    width: 100%;
 }

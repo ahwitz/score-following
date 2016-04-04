@@ -12,9 +12,10 @@ var nextFacsTime = -1;
 var prevHighlightSelector;
 
 var meiEditor;
-var waveformAudioPlayer;
+var waveformAudioPlayer, waveformAudioPlayers = {};
 var divaData;
 var vidaData;
+var editable = false;
 
 var divaSettings = {
     enableAutoHeight: true,
@@ -62,68 +63,96 @@ $(document).ready(function() {
         var titles = meiEditor.getPageTitles();
         for(var tIdx = 0; tIdx < titles.length; tIdx++)
         {
-            var element = meiEditor.getPageData(titles[tIdx]).el;
-            element.innerHTML = "<div class='waveform'></div>";
-            var activeWaveform = element.querySelector('.waveform');
-            $(activeWaveform).wap({});
-            waveformAudioPlayer = $(activeWaveform).data('wap');
+            var avIdx = 0;
+            var pageData = meiEditor.getPageData(titles[tIdx]);
+            var avFiles = pageData.parsed.querySelectorAll("avFile");
+            var element = pageData.el;
+            element.innerHTML = "";
+            for (avIdx; avIdx < avFiles.length; avIdx++)
+            {
+                var label = avFiles[avIdx].getAttribute('label');
+                var location = avFiles[avIdx].getAttribute('target');
+                element.innerHTML += "<div class='waveform' data-index='" + avIdx + "'></div>";
+                var activeWaveform = element.querySelector('.waveform[data-index="' + avIdx + '"]');
+                $(activeWaveform).wap({
+                    'editMode': editable,
+                    'fileOnLoad': location,
+                    'title': label
+                });
+
+                waveformAudioPlayers[activeWaveform.getAttribute('id')] = $(activeWaveform).data('wap');
+            } 
+
+            avIdx++;
+            element.innerHTML += "<div class='waveform' data-index='" + avIdx + "'></div>";
+            activeWaveform = element.querySelector('.waveform[data-index="' + avIdx + '"]');
+            $(activeWaveform).wap({
+                'editMode': editable,
+                'title': 'Add your own file'
+            });
+            
+            waveformAudioPlayers[activeWaveform.getAttribute('id')] = $(activeWaveform).data('wap');
         }
 
-        // var waveformDivs = document.getElementsByClassName("waveform");
-        // for (var wIdx = 0; w)
-        // console.log($('.waveform'))
-        // $('.waveform').wap({}); 
-        // waveformAudioPlayer = $($(".waveform")[0]).data('wap');
+        console.log(waveformAudioPlayers);
 
-        // meiEditor.events.subscribe("PageEdited", regenerateTimePoints);
-        $("#playback-checkbox").on('change', function(e)
+        if (editable)
         {
-            $("#autoscroll-wrapper").css('display', ($("#playback-checkbox").is(":checked") ? "inline" : "none"));
-            if(!$("#playback-checkbox").is(":checked"))
+            $(".playback-checkbox").on('change', function(e)
             {
-                turnOffHighlights();
-            }
-
-            $("#autoscroll-checkbox").on('change', function(e)
-            {
-                if(highlightMode != $("#autoscroll-checkbox").is(":checked"))
-                {
-                    highlightMode = $("#autoscroll-checkbox").is(":checked");
-                }
-
-                if(waveformAudioPlayer.isPlaying() && highlightMode)
-                {
-                    updateHighlights();
-                }
-                else if (!highlightMode)
+                $("#autoscroll-wrapper").css('display', ($("#playback-checkbox").is(":checked") ? "inline" : "none"));
+                if(!$("#playback-checkbox").is(":checked"))
                 {
                     turnOffHighlights();
                 }
+
+                $("#autoscroll-checkbox").on('change', function(e)
+                {
+                    if(highlightMode != $("#autoscroll-checkbox").is(":checked"))
+                    {
+                        highlightMode = $("#autoscroll-checkbox").is(":checked");
+                    }
+
+                    if(waveformAudioPlayer.isPlaying() && highlightMode)
+                    {
+                        updateHighlights();
+                    }
+                    else if (!highlightMode)
+                    {
+                        turnOffHighlights();
+                    }
+                });
             });
-        });
-        $("#playback-checkbox").after("<button onclick='regenerateTimePoints()'>Reload MEI</button>");
-        $("#pause-button").on('click', function()
+            $(".playback-checkbox").after("<button onclick='regenerateTimePoints()'>Reload MEI</button>");
+        }
+
+        $(".pause-button").on('click', function(e)
         {
-            if (highlightMode) turnOffHighlights();
+            waveformAudioPlayer = $(e.target).closest(".waveform").data('wap');
+            if (!editable || (editable && highlightMode)) turnOffHighlights();
         });
 
-        $("#play-button").on('click', function()
+        $(".play-button").on('click', function(e)
         {
-            if (highlightMode) updateHighlights();
+            waveformAudioPlayer = waveformAudioPlayers[$(e.target).closest(".waveform").attr('id')];
+            if (!editable || (editable && highlightMode)) updateHighlights();
         });
 
         meiEditor.events.subscribe("ActivePageChanged", function(filename) {
-            if (divaData)
-                console.log("would switch Diva");
-            else if (vidaData)
+            var pageData = meiEditor.getPageData(filename);
+            if (pageData.parsed.querySelector("graphic"))
             {
-                console.log(vidaData);
-                vidaData.changeMusic(meiEditor.getPageData(filename).parsed.outerHTML);
-                vidaUpdate(meiEditor.getPageData(filename).parsed);
+                console.log("would switch Diva");
             }
-            console.log(meiEditor.getPageData(filename).parsed);
-            // vidaUpdate(meiEditor.getPageData(filename).parsed);
-            console.log(filename, meiEditor.isActivePageLinked(filename));
+            else 
+            {
+                console.log("would switch Vida", vidaData);
+                if (vidaData)
+                {
+                    vidaData.changeMusic(meiEditor.getPageData(filename).raw);
+                    vidaUpdate(meiEditor.getPageData(filename).parsed);
+                }
+            }
         });
         meiEditor.events.subscribe("NewFile", function(a, filename) {
             console.log(filename, meiEditor.isActivePageLinked(filename));
@@ -352,6 +381,7 @@ var vidaUpdate = function(parsed)
 
 function turnOffHighlights()
 {
+    console.log("Clearing?");
     window.clearInterval(highlightInterval);
     intervalIsRunning = false;
 }

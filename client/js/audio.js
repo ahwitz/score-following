@@ -29,6 +29,7 @@ function hasOwnProperty(obj, prop) {
         gainMod.gain.value = INITIAL_GAIN_VALUE;
         var audioBuffer;
         var audioSource;
+        var editMode = options.editMode || false;
 
         //Keeps track of playback position 
         var audioSourceStartPoint = 0; //point in the music where the source will start playing from
@@ -45,27 +46,24 @@ function hasOwnProperty(obj, prop) {
         var ERROR_TIMEOUT_TIMER = 5000;
         var SAMPLE_RATE;
         var PEAK_RESOLUTION = 50;
-        var playbackMode = false;
-        var autoscrollMode = false;
+        var playbackMode = editMode;
 
         /* RESOURCE FUNCTIONS */
         //creates a canvas - before is a jQuery/CSS selector
         function createCanvas ( before, w, h, id ) 
         {
-            $(before).before("<canvas id='" + id + "'></canvas>");
+            $(options.parentSelector).append("<canvas id='" + id + "' width='" + w + "' height='" + h + "'></canvas>");
             var tempCanvas = document.getElementById(id);
-            tempCanvas.width  = w;
-            tempCanvas.height = h;
             return tempCanvas;
         }
 
         //writes an error in the error div
         function writeError (text)
         {
-            $(options.parentID + " .error").text(text);
+            $(options.parentSelector + " .error").text(text);
             errorTimeout = setTimeout(function()
             { 
-                $(options.parentID + " .error").text(""); 
+                $(options.parentSelector + " .error").text(""); 
             }, ERROR_TIMEOUT_TIMER);
         }
 
@@ -124,10 +122,10 @@ function hasOwnProperty(obj, prop) {
         //Creates playback canvas (the moving red bar)
         function renderPlaybackCanvas()
         {
-            pCanvas = createCanvas(options.parentID + " .error", canvasWidth, canvasHeight, options.parentIdentifier + "-playback-canvas");
+            pCanvas = createCanvas(options.parentSelector + " .error", canvasWidth, canvasHeight, options.parentID + "-playback-canvas");
             pCanvas.style.position = "absolute";
             pCanvas.style.zIndex = wCanvas.style.zIndex + 1;
-            $(pCanvas).offset($(wCanvas).offset());
+            $(pCanvas).offset({'left': $(wCanvas).offset().left});
             pCanvasContext = pCanvas.getContext('2d');
             pCanvasContext.fillStyle = 'rgba(0, 0, 0, 0)';
             pCanvasContext.fillRect(0,0,canvasWidth,canvasHeight);
@@ -206,9 +204,9 @@ function hasOwnProperty(obj, prop) {
                 SAMPLE_RATE = buffer.sampleRate;
                 renderWaveformCanvas();
                 renderPlaybackCanvas();
-                $(options.parentID + ' .play-button').prop('disabled', false);
-                $(options.parentID + ' .pause-button').prop('disabled', false);
-                $(options.parentID + ' .source-volume').prop('disabled', false);
+                $(options.parentSelector + ' .play-button').prop('disabled', false);
+                $(options.parentSelector + ' .pause-button').prop('disabled', false);
+                $(options.parentSelector + ' .source-volume').prop('disabled', false);
                 initListeners();
             }, function(e) {
                 console.log('Error decoding file', e);
@@ -218,7 +216,7 @@ function hasOwnProperty(obj, prop) {
         //Initializes keyboard listeners
         function initListeners() 
         {
-            $(options.parentID + " .play-button").on('click', function()
+            $(options.parentSelector + " .play-button").on('click', function()
             {
                 if(audioBuffer === null)
                 {
@@ -233,7 +231,7 @@ function hasOwnProperty(obj, prop) {
                 startAudioPlayback();
             });
 
-            $(options.parentID + " .pause-button").on('click', function()
+            $(options.parentSelector + " .pause-button").on('click', function()
             {
                 if (audioSource === undefined || audioSource.isPlaying === false) 
                 {
@@ -287,6 +285,7 @@ function hasOwnProperty(obj, prop) {
 
             $(window).on('resize', function(e)
             {
+                console.log("Resizing?");
                 $(pCanvas).offset($(wCanvas).offset());
                 $(pCanvas).width($(wCanvas).width());
                 $(pCanvas).height($(wCanvas).height());
@@ -327,38 +326,59 @@ function hasOwnProperty(obj, prop) {
         //Actual init function for the entire object
         function init()
         {
+            var idIdx = 1;
             options.parentIdentifier = options.parentObject.parent().attr('id');
-            options.parentObject.attr('id', options.parentIdentifier + '-waveform');
-            options.parentID = "#" + options.parentObject.attr('id');
-            options.parentObject.append('<button class="play-button" disabled>Play</button>' +
+            options.parentID = options.parentIdentifier + '-waveform-' + idIdx;
+            while (document.getElementById(options.parentID))
+                options.parentID = options.parentIdentifier + '-waveform-' + (idIdx++);
+
+            options.parentObject.attr('id', options.parentID);
+            options.parentSelector = "#" + options.parentID;
+
+            options.parentObject.append('<div class="waveform-title">' + options.title + '</div>' +
+                '<button class="play-button" disabled>Play</button>' +
                 '<button class="pause-button" disabled>Pause</button>' +
                 '&nbsp;&nbsp;Volume: <input class="source-volume" type="range" min="0" max="1" step="0.01" value="' + INITIAL_GAIN_VALUE.toString() + '" disabled/>' +
-                '&nbsp;&nbsp;Playback mode: <input type="checkbox" class="playback-checkbox">' +
-                '<span class="autoscroll-wrapper" style="display:none">&nbsp;&nbsp;Autoscroll: <input type="checkbox" id="autoscroll-checkbox"></span><br>' +
-                '<input class="file-input" type="file" accept="audio/*"><br>' +
-                '<div class="error"></div><br>');
-            canvasWidth = $(options.parentID).width() - 20;
-            var fileInput = document.querySelector(options.parentID + " .file-input");
+                (editMode ? '&nbsp;&nbsp;Playback mode: <input type="checkbox" class="playback-checkbox">' +
+                '<span class="autoscroll-wrapper" style="display:none">&nbsp;&nbsp;Autoscroll: <input type="checkbox" id="autoscroll-checkbox"></span><br>' : "") +
+                (options.fileOnLoad ? "" : '<input class="file-input" type="file" accept="audio/*">') +
+                '<div class="error"></div>');
+            canvasWidth = $(options.parentSelector).width() - 20;
 
-            fileInput.addEventListener('change', function(e) {
-                if (this.files.length === 0) return;
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    initSound(this.result);
-                };
-                reader.readAsArrayBuffer(this.files[0]);
-            }, false);
-
-            $(options.parentID + " .playback-checkbox").on('change', function(e)
+            if (options.fileOnLoad) // http://www.henryalgus.com/reading-binary-files-using-jquery-ajax/
             {
-                playbackMode = $(options.parentID + " .playback-checkbox").is(":checked");
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', options.fileOnLoad, true);
+                xhr.responseType = 'arraybuffer';
+                 
+                xhr.onload = function(e) {
+                    initSound(this.response); 
+                };
+                 
+                xhr.send();
+            }
+            else
+            {
+                document.querySelector(options.parentSelector + " .file-input").addEventListener('change', function(e) {
+                    if (this.files.length === 0) return;
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        initSound(this.result);
+                    };
+                    reader.readAsArrayBuffer(this.files[0]);
+                }, false);
+            }
+
+            $(options.parentSelector + " .playback-checkbox").on('change', function(e)
+            {
+                playbackMode = $(options.parentSelector + " .playback-checkbox").is(":checked");
             });
 
-            $(options.parentID + " .source-volume").on('change', function(e){
-                if(gainMod) gainMod.gain.value = $(options.parentID + " .source-volume").val();
+            $(options.parentSelector + " .source-volume").on('change', function(e){
+                if(gainMod) gainMod.gain.value = $(options.parentSelector + " .source-volume").val();
             });
 
-            wCanvas = createCanvas(options.parentID + " .error", canvasWidth, canvasHeight, options.parentIdentifier + "-waveform-canvas"); //waveform canvas
+            wCanvas = createCanvas(options.parentSelector + " .error", canvasWidth, canvasHeight, options.parentID + "-waveform-canvas"); //waveform canvas
             wCanvasContext = wCanvas.getContext('2d'); 
         }
 
