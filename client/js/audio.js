@@ -38,9 +38,9 @@ function hasOwnProperty(obj, prop) {
 
         //Canvas settings/vars
         var canvasWidth, canvasHeight = 120;
-        var wCanvas; //waveform canvas
-        var pCanvas; //playback overlay canvas
-        var pCanvasContext;
+        // ids have to be indexed because something's wrong and I don't wanna debug and/or JS is stupid. likely 'and'
+        var wCanvas, wCanvasId; //waveform canvas
+        var pCanvas, pCanvasId, pCanvasContext; //playback overlay canvas
 
         //Other
         var errorTimeout;
@@ -136,6 +136,7 @@ function hasOwnProperty(obj, prop) {
         function renderPlaybackCanvas()
         {
             pCanvas = createCanvas(options.parentSelector + " .error", canvasWidth, canvasHeight, options.parentID + "-playback-canvas");
+            pCanvasId = "#" + pCanvas.getAttribute('id');
             pCanvas.style.position = "absolute";
             pCanvas.style.zIndex = wCanvas.style.zIndex + 1;
             pCanvasContext = pCanvas.getContext('2d');
@@ -251,32 +252,23 @@ function hasOwnProperty(obj, prop) {
 
         var resizeComponents = this.resizeComponents = function()
         {
-            if (!pCanvas) return;
+            if (!audioBuffer) return;
 
-            if (pCanvas) 
+            if (pCanvasId) 
             {
-                var pCanvas = pCanvas.getAttribute('id'); // I don't understand the DOM and never will, but this is necessary
-                $(pCanvas).off('click', pCanvasListener);
-                $(pCanvas).remove();
+                $(pCanvasId).off('click', pCanvasListener);
+                $(pCanvasId).remove();
             }
-            if (wCanvas) 
-            {
-                var wCanvas = wCanvas.getAttribute('id'); // same
-                $(wCanvas).remove();
-            }
+            if (wCanvasId) $(wCanvasId).remove();
+
             var canvasWidth = $(options.parentSelector).parent().width();
             wCanvas = createCanvas(options.parentSelector + " .error", canvasWidth, canvasHeight, options.parentID + "-waveform-canvas");
+            wCanvasId = "#" + wCanvas.getAttribute('id');
             renderWaveformCanvas();
             renderPlaybackCanvas();
 
             pCanvas.style.left = wCanvas.style.left = 0;
             initListeners();
-        };
-
-        function rerenderCanvases()
-        {
-            renderWaveformCanvas();
-            renderPlaybackCanvas();
         };
 
         this.realTimeToPlaybackTime = function (time) 
@@ -401,6 +393,7 @@ function hasOwnProperty(obj, prop) {
             });
 
             wCanvas = createCanvas(options.parentSelector + " .error", canvasWidth, canvasHeight, options.parentID + "-waveform-canvas"); //waveform canvas
+            wCanvasId = "#" + wCanvas.getAttribute('id');
             $(window).on('resize', resizeComponents);
         }
 
