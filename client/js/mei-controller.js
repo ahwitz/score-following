@@ -151,7 +151,13 @@ $(document).ready(function() {
         });
 
         meiEditor.events.subscribe("ActivePageChanged", function(filename) {
+            turnOffHighlights();
+
             var pageData = meiEditor.getPageData(filename);
+            var waveforms = pageData.el.querySelectorAll(".waveform");
+            for (var wIdx = 0; wIdx < waveforms.length; wIdx++)
+                waveformAudioPlayers[waveforms[wIdx].getAttribute('id')].resizeComponents();
+
             if (pageData.parsed.querySelector("graphic"))
             {
                 console.log("would switch Diva");
@@ -159,10 +165,7 @@ $(document).ready(function() {
             else 
             {
                 console.log("would switch Vida", vidaData);
-                if (vidaData)
-                {
-                    vidaData.changeMusic(meiEditor.getPageData(filename).raw);
-                }
+                if (vidaData) vidaData.changeMusic(meiEditor.getPageData(filename).raw);
             }
         });
 
@@ -198,8 +201,6 @@ function regenerateTimePoints()
 var updateActiveWAP = function(e, canvas)
 {
     turnOffHighlights();
-    for (var playerID in waveformAudioPlayers)
-        waveformAudioPlayers[playerID].pauseAudioPlayback(true);
 
     var target = canvas ? canvas : e.target;
     var filename = $(target).closest(".mei-editor-pane").attr('data-originalname');
@@ -408,6 +409,9 @@ function turnOffHighlights()
     window.clearInterval(highlightInterval);
     intervalIsRunning = false;
     nextFacsTime = 0;
+    
+    for (var playerID in waveformAudioPlayers)
+        waveformAudioPlayers[playerID].pauseAudioPlayback(true);
 }
 
 function updateDivaHighlights(overrideTime)

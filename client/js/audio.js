@@ -122,7 +122,6 @@ function hasOwnProperty(obj, prop) {
         function pauseAudioPlayback(saveCurrentPoint)
         {
             if (audioSource === undefined || audioSource.isPlaying === false) return;
-            console.log("Pausing", options.fileOnLoad);
 
             if(saveCurrentPoint) audioSourceStartPoint = currentTimeToPlaybackTime();
 
@@ -234,25 +233,51 @@ function hasOwnProperty(obj, prop) {
         //Initializes keyboard listeners
         function initListeners() 
         {
-            $(pCanvas).on('click', function(e){
-                var totalLength = canvasWidth;
-                var lengthIn = e.pageX - $(this).offset().left;
-
-                audioSourceStartPoint = (lengthIn / totalLength) * audioBuffer.duration;
-                mei.Events.publish("JumpedToTime", [audioSourceStartPoint, this]);
-
-                pauseAudioPlayback(false);
-                startAudioPlayback();
-            });
-
-            $(window).on('resize', function(e)
-            {
-                console.log("Resizing?");
-                $(pCanvas).offset($(wCanvas).offset());
-                $(pCanvas).width($(wCanvas).width());
-                $(pCanvas).height($(wCanvas).height());
-            });
+            $(pCanvas).on('click', pCanvasListener);
         }
+
+        var pCanvasListener = function(e)
+        {
+            var totalLength = canvasWidth;
+            var lengthIn = e.pageX - $(e.target).offset().left;
+
+            audioSourceStartPoint = (lengthIn / totalLength) * audioBuffer.duration;
+            mei.Events.publish("JumpedToTime", [audioSourceStartPoint, this]);
+
+            pauseAudioPlayback(false);
+            startAudioPlayback();
+        }
+
+        var resizeComponents = this.resizeComponents = function()
+        {
+            if (!pCanvas) return;
+
+            if (pCanvas) 
+            {
+                var pCanvas = pCanvas.getAttribute('id'); // I don't understand the DOM and never will, but this is necessary
+                $(pCanvas).off('click', pCanvasListener);
+                $(pCanvas).remove();
+            }
+            if (wCanvas) 
+            {
+                var wCanvas = wCanvas.getAttribute('id'); // same
+                $(wCanvas).remove();
+            }
+            var canvasWidth = $(options.parentSelector).parent().width();
+            wCanvas = createCanvas(options.parentSelector + " .error", canvasWidth, canvasHeight, options.parentID + "-waveform-canvas");
+            renderWaveformCanvas();
+            renderPlaybackCanvas();
+
+            pCanvas.style.left = wCanvas.style.left = 0;
+            $(pCanvas).offset({'top': wCanvas.getBoundingClientRect().top});
+            initListeners();
+        };
+
+        function rerenderCanvases()
+        {
+            renderWaveformCanvas();
+            renderPlaybackCanvas();
+        };
 
         this.realTimeToPlaybackTime = function (time) 
         {
@@ -339,7 +364,8 @@ function hasOwnProperty(obj, prop) {
                 '<span class="autoscroll-wrapper" style="display:none">&nbsp;&nbsp;Autoscroll: <input type="checkbox" id="autoscroll-checkbox"></span><br>' : "") +
                 (options.fileOnLoad ? "" : '<input class="file-input" type="file" accept="audio/*">') +
                 '<div class="error"></div>');
-            canvasWidth = $(options.parentSelector).width() - 20;
+
+            canvasWidth = $(options.parentSelector).closest(".mei-editor-pane").parent().width();
 
             if (options.fileOnLoad) // http://www.henryalgus.com/reading-binary-files-using-jquery-ajax/
             {
@@ -375,6 +401,7 @@ function hasOwnProperty(obj, prop) {
             });
 
             wCanvas = createCanvas(options.parentSelector + " .error", canvasWidth, canvasHeight, options.parentID + "-waveform-canvas"); //waveform canvas
+            $(window).on('resize', resizeComponents);
         }
 
         init();

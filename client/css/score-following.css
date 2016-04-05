@@ -31,8 +31,7 @@ body, html{
 }
 
 .waveform{
-    /*width: calc(50% - 10px);*/
-    height: 190px;
+    width: 100%;
     position:relative;
 }
 
@@ -42,5 +41,9 @@ body, html{
 }
 
 .waveform canvas {
+    display: inline;
+}
+
+.mei-editor-pane {
     width: 100%;
 }
