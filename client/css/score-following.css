@@ -31,7 +31,6 @@ body, html{
 }
 
 .waveform{
-    padding: 5px;
     /*width: calc(50% - 10px);*/
     height: 190px;
     position:relative;

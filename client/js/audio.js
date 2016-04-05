@@ -38,8 +38,9 @@ function hasOwnProperty(obj, prop) {
 
         //Canvas settings/vars
         var canvasWidth, canvasHeight = 120;
-        var wCanvas, wCanvasContext; //waveform canvas
-        var pCanvas, pCanvasContext; //playback overlay canvas
+        var wCanvas; //waveform canvas
+        var pCanvas; //playback overlay canvas
+        var pCanvasContext;
 
         //Other
         var errorTimeout;
@@ -125,7 +126,6 @@ function hasOwnProperty(obj, prop) {
             pCanvas = createCanvas(options.parentSelector + " .error", canvasWidth, canvasHeight, options.parentID + "-playback-canvas");
             pCanvas.style.position = "absolute";
             pCanvas.style.zIndex = wCanvas.style.zIndex + 1;
-            $(pCanvas).offset({'left': $(wCanvas).offset().left});
             pCanvasContext = pCanvas.getContext('2d');
             pCanvasContext.fillStyle = 'rgba(0, 0, 0, 0)';
             pCanvasContext.fillRect(0,0,canvasWidth,canvasHeight);
@@ -138,6 +138,9 @@ function hasOwnProperty(obj, prop) {
         function renderWaveformCanvas() 
         {
             var leftChannel = audioBuffer.getChannelData(0); // Float32Array describing left channel 
+
+            var wCanvasContext = document.getElementById(options.parentID + "-waveform-canvas").getContext('2d');
+            wCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
 
             wCanvasContext.save();
             wCanvasContext.fillStyle = '#CCCCCC';
@@ -187,7 +190,6 @@ function hasOwnProperty(obj, prop) {
 
         //Initializes a sound once file is loaded
         function initSound(arrayBuffer) {
-            wCanvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
             /*
             //Web Audio API devs say this is implemented, but I'm not sure if it is or not...
             for(x in audioContext){console.log(x);}
@@ -204,6 +206,9 @@ function hasOwnProperty(obj, prop) {
                 SAMPLE_RATE = buffer.sampleRate;
                 renderWaveformCanvas();
                 renderPlaybackCanvas();
+
+                $(pCanvas).css('left', 0);
+                // $(wCanvas).offset({'left': 0});
                 $(options.parentSelector + ' .play-button').prop('disabled', false);
                 $(options.parentSelector + ' .pause-button').prop('disabled', false);
                 $(options.parentSelector + ' .source-volume').prop('disabled', false);
@@ -379,7 +384,6 @@ function hasOwnProperty(obj, prop) {
             });
 
             wCanvas = createCanvas(options.parentSelector + " .error", canvasWidth, canvasHeight, options.parentID + "-waveform-canvas"); //waveform canvas
-            wCanvasContext = wCanvas.getContext('2d'); 
         }
 
         init();

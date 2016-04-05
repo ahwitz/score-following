@@ -128,8 +128,9 @@ $(document).ready(function() {
 
         $(".pause-button").on('click', function(e)
         {
-            waveformAudioPlayer = $(e.target).closest(".waveform").data('wap');
-            if (!editable || (editable && highlightMode)) turnOffHighlights();
+            // waveformAudioPlayer = $(e.target).closest(".waveform").data('wap');
+            if (waveformAudioPlayer === waveformAudioPlayers[$(e.target).closest(".waveform").attr('id')]
+                && (!editable || (editable && highlightMode))) turnOffHighlights();
         });
 
         $(".play-button").on('click', function(e)
