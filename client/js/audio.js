@@ -88,6 +88,16 @@ function hasOwnProperty(obj, prop) {
         //(re)starts playback at audioSourceStartPoint
         function startAudioPlayback()
         {
+            if(audioBuffer === null)
+            {
+                writeError("Nothing has been loaded.");
+                return;
+            }
+            else if(audioSource !== undefined && audioSource.isPlaying === true)
+            {
+                return;
+            }
+
             if(audioSource && audioSource.isPlaying) {
                 pauseAudioPlayback(false);
             }
@@ -105,12 +115,15 @@ function hasOwnProperty(obj, prop) {
             playbackBarPosition = (audioSourceStartPoint / audioBuffer.duration) * canvasWidth;
             drawPlaybackLine();
 
-            pCanvasAdvanceInterval = setInterval(drawPlaybackLine, intervalRefreshSpeed);
-        }
+            pCanvasAdvanceInterval = setInterval(drawPlaybackLine, intervalRefreshSpeed)
+        };
 
         //Pauses playback; will save current playback point if saveCurrent is true
         function pauseAudioPlayback(saveCurrentPoint)
         {
+            if (audioSource === undefined || audioSource.isPlaying === false) return;
+            console.log("Pausing", options.fileOnLoad);
+
             if(saveCurrentPoint) audioSourceStartPoint = currentTimeToPlaybackTime();
 
             audioSource.isPlaying = false;
@@ -221,71 +234,15 @@ function hasOwnProperty(obj, prop) {
         //Initializes keyboard listeners
         function initListeners() 
         {
-            $(options.parentSelector + " .play-button").on('click', function()
-            {
-                if(audioBuffer === null)
-                {
-                    writeError("Nothing has been loaded.");
-                    return;
-                }
-                else if(audioSource !== undefined && audioSource.isPlaying === true)
-                {
-                    return;
-                }
-
-                startAudioPlayback();
-            });
-
-            $(options.parentSelector + " .pause-button").on('click', function()
-            {
-                if (audioSource === undefined || audioSource.isPlaying === false) 
-                {
-                    writeError("Source is not playing.");
-                    return;
-                }
-
-                pauseAudioPlayback(true);
-            });
-
             $(pCanvas).on('click', function(e){
                 var totalLength = canvasWidth;
                 var lengthIn = e.pageX - $(this).offset().left;
 
                 audioSourceStartPoint = (lengthIn / totalLength) * audioBuffer.duration;
-                mei.Events.publish("JumpedToTime", [audioSourceStartPoint]);
+                mei.Events.publish("JumpedToTime", [audioSourceStartPoint, this]);
 
+                pauseAudioPlayback(false);
                 startAudioPlayback();
-            });
-
-            //have to prevent space scroll on keydown rather than keyup
-            $(window).on('keydown', function(e)
-            {
-                //space bar
-                if (e.keyCode == 32) {
-                    e.preventDefault();
-                }
-            });
-
-            $(window).on('keyup', function(e)
-            {
-                //space bar
-                if (e.keyCode == 32)
-                {
-                    if(playbackMode)
-                    {
-                        if(audioSource && audioSource.isPlaying)
-                            pauseAudioPlayback(true);
-                        else
-                            startAudioPlayback();
-                    }
-
-                    //pause the audio playback and wait for zone
-                    else if(audioSource && audioSource.isPlaying)
-                    {
-                        pauseAudioPlayback(true);
-                        meiUpdateStartFunction(currentTimeToPlaybackTime());
-                    }
-                }
             });
 
             $(window).on('resize', function(e)
@@ -322,10 +279,44 @@ function hasOwnProperty(obj, prop) {
             pauseAudioPlayback(saveCurrentPoint);
         };
 
+        // basically playback toggle
+        this.spaceInput = function()
+        { 
+            if(playbackMode)
+            {
+                if(audioSource && audioSource.isPlaying)
+                    pauseAudioPlayback(true);
+                else 
+                    startAudioPlayback();
+            }
+
+            //pause the audio playback and wait for zone
+            else if(audioSource && audioSource.isPlaying)
+            {
+                pauseAudioPlayback(true);
+                meiUpdateStartFunction(currentTimeToPlaybackTime());
+                console.log(currentTimeToPlaybackTime());
+            }
+            else
+            {
+                startAudioPlayback();
+            }
+        };
+
         this.isPlaying = function()
         {
             if (!audioSource) return false;
             return audioSource.isPlaying;
+        };
+
+        this.getFilename = function()
+        {
+            if (options.fileOnLoad) return options.fileOnLoad;
+        };
+
+        this.getParentID = function()
+        {
+            return options.parentID;
         };
 
         //Actual init function for the entire object

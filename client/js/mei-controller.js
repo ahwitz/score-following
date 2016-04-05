@@ -12,7 +12,7 @@ var nextFacsTime = -1;
 var prevHighlightSelector;
 
 var meiEditor;
-var waveformAudioPlayer, waveformAudioPlayers = {};
+var activeWAP, waveformAudioPlayers = {};
 var divaData;
 var vidaData;
 var editable = false;
@@ -94,8 +94,6 @@ $(document).ready(function() {
             waveformAudioPlayers[activeWaveform.getAttribute('id')] = $(activeWaveform).data('wap');
         }
 
-        console.log(waveformAudioPlayers);
-
         if (editable)
         {
             $(".playback-checkbox").on('change', function(e)
@@ -113,7 +111,7 @@ $(document).ready(function() {
                         highlightMode = $("#autoscroll-checkbox").is(":checked");
                     }
 
-                    if(waveformAudioPlayer.isPlaying() && highlightMode)
+                    if(activeWAP.isPlaying() && highlightMode)
                     {
                         updateHighlights();
                     }
@@ -126,17 +124,30 @@ $(document).ready(function() {
             $(".playback-checkbox").after("<button onclick='regenerateTimePoints()'>Reload MEI</button>");
         }
 
+        //have to prevent space scroll on keydown rather than keyup
+        $(window).on('keydown', function(e)
+        {
+            if (e.keyCode == 32) e.preventDefault();
+        });
+
+        $(window).on('keyup', function(e)
+        {
+            if (e.keyCode == 32) activeWAP.spaceInput();
+        });
+
         $(".pause-button").on('click', function(e)
         {
-            // waveformAudioPlayer = $(e.target).closest(".waveform").data('wap');
-            if (waveformAudioPlayer === waveformAudioPlayers[$(e.target).closest(".waveform").attr('id')]
+            if (activeWAP === waveformAudioPlayers[$(e.target).closest(".waveform").attr('id')]
                 && (!editable || (editable && highlightMode))) turnOffHighlights();
+
+            activeWAP.pauseAudioPlayback(true);
         });
 
         $(".play-button").on('click', function(e)
         {
-            waveformAudioPlayer = waveformAudioPlayers[$(e.target).closest(".waveform").attr('id')];
+            updateActiveWAP(e);
             if (!editable || (editable && highlightMode)) updateHighlights();
+            activeWAP.startAudioPlayback();
         });
 
         meiEditor.events.subscribe("ActivePageChanged", function(filename) {
@@ -151,18 +162,15 @@ $(document).ready(function() {
                 if (vidaData)
                 {
                     vidaData.changeMusic(meiEditor.getPageData(filename).raw);
-                    vidaUpdate(meiEditor.getPageData(filename).parsed);
                 }
             }
-        });
-        meiEditor.events.subscribe("NewFile", function(a, filename) {
-            console.log(filename, meiEditor.isActivePageLinked(filename));
         });
 
         //we need the facs points to start and this will update zones
         regenerateTimePoints();
 
         mei.Events.subscribe("JumpedToTime", updateHighlights);
+        mei.Events.subscribe("JumpedToTime", updateActiveWAP);
     });
 });
 
@@ -187,6 +195,19 @@ function regenerateTimePoints()
     }
 }
 
+var updateActiveWAP = function(e, canvas)
+{
+    turnOffHighlights();
+    for (var playerID in waveformAudioPlayers)
+        waveformAudioPlayers[playerID].pauseAudioPlayback(true);
+
+    var target = canvas ? canvas : e.target;
+    var filename = $(target).closest(".mei-editor-pane").attr('data-originalname');
+    activeWAP = waveformAudioPlayers[$(target).closest(".waveform").attr('id')];
+
+    vidaUpdate(meiEditor.getPageData(filename).parsed);
+};
+
 var switchToRenderer = function(which, newFile)
 {
     if (which === "diva" && !divaData)
@@ -209,7 +230,7 @@ var switchToRenderer = function(which, newFile)
             meiEditor.events.unsubscribe(endHandler);
             regenerateTimePoints();
             insertNewTimepoint(meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed, uuid);
-            waveformAudioPlayer.startAudioPlayback();
+            activeWAP.startAudioPlayback();
         };
         return "diva";
     }
@@ -233,7 +254,7 @@ var switchToRenderer = function(which, newFile)
             mei.Events.unsubscribe(endHandler);
             regenerateTimePoints();
             insertNewTimepoint(meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed, measureObj.attr('id'));
-            waveformAudioPlayer.startAudioPlayback();
+            activeWAP.startAudioPlayback();
         };
 
         return "vida";
@@ -267,7 +288,7 @@ var insertNewTimepoint = function(parsed, targetUUID)
     var newWhen = document.createElement("when");
     var whenUUID = genUUID();
     newWhen.setAttribute('xml:id', whenUUID);
-    newWhen.setAttribute('absolute', waveformAudioPlayer.currentTimeToPlaybackTime());
+    newWhen.setAttribute('absolute', activeWAP.currentTimeToPlaybackTime());
     activeTimeline.appendChild(newWhen);
 
     var targetObj = parsed.querySelector("*[*|id='" + targetUUID + "']");
@@ -350,12 +371,14 @@ var divaUpdate = function(facsDict)
 
 var vidaUpdate = function(parsed)
 {
+    if (!activeWAP) return;
     facsPoints = {};
     var facsPointsStaging = {};
 
     // Get a list of <when> timepoints and order them
     var parsed = meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed;
-    var whenPoints = parsed.querySelectorAll("when");
+    var avFile = parsed.querySelector("avFile[target='" + activeWAP.getFilename() + "']").getAttribute("id");
+    var whenPoints = parsed.querySelectorAll("timeline[avref='" + avFile + "'] when");
     var whenIdx = whenPoints.length;
 
     while(whenIdx--)
@@ -364,8 +387,8 @@ var vidaUpdate = function(parsed)
         var whenID = thisWhen.getAttribute("xml:id");
         var whenAbs = thisWhen.getAttribute('absolute');
         var floatWhen = (whenAbs.indexOf(":") > 0 ? stringTimeToFloat(whenAbs) : parseFloat(whenAbs));
-        if (parsed.querySelector("[*|when='" + whenID + "']"))
-            facsPointsStaging[floatWhen] = "#" + parsed.querySelector("[*|when='" + whenID + "']").getAttribute('xml:id');
+        if (parsed.querySelector("[*|id='" + thisWhen.getAttribute('data') + "']"))
+            facsPointsStaging[floatWhen] = "#" + thisWhen.getAttribute('data');
     }
 
     // Make sure they're in ascending order to speed up calculations later
@@ -382,9 +405,9 @@ var vidaUpdate = function(parsed)
 
 function turnOffHighlights()
 {
-    console.log("Clearing?");
     window.clearInterval(highlightInterval);
     intervalIsRunning = false;
+    nextFacsTime = 0;
 }
 
 function updateDivaHighlights(overrideTime)
@@ -414,7 +437,7 @@ function updateDivaHighlights(overrideTime)
 
 function updateVidaHighlights(overrideTime)
 {
-    var activeAudioTime = (parseFloat(overrideTime) || waveformAudioPlayer.currentTimeToPlaybackTime());
+    var activeAudioTime = (parseFloat(overrideTime) || activeWAP.currentTimeToPlaybackTime());
     // if we haven't passed the next update, forget this and just wait until the next iteration
     if ((overrideTime === undefined) && (activeAudioTime < nextFacsTime)) return;
 
@@ -426,6 +449,12 @@ function updateVidaHighlights(overrideTime)
             nextFacsTime = facsTimes[facsIdx];
             break;
         }
+    // Nothing left.
+    if(facsIdx == facsTimes.length)
+    {
+        nextFacsTime === Infinity;
+        return;
+    }
 
     // track which highlights need to be added
     var activeFacsTime = facsTimes[facsIdx - 1];
