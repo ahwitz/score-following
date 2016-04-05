@@ -20,9 +20,9 @@ var editable = false;
 var divaSettings = {
     enableAutoHeight: true,
     fixedHeightGrid: false,
-    iipServerURL: "http://localhost/fcgi-bin/iipsrv.fcgi",
-    objectData: "diva_data/holst2Tiff.json",
-    imageDir: "/srv/images/holst2Tiff/",
+    iipServerURL: "http://diva.simssa.ca/fcgi-bin/iipsrv.fcgi",
+    objectData: "diva_data/brahms.json",
+    imageDir: "/srv/images/brahms",
     // iipServerURL: "http://diva.simssa.ca/fcgi-bin/iipsrv.fcgi",
     // objectData: "/salzinnes.json",
     // imageDir: "/srv/images/cantus/cdn-hsmu-m2149l4/",
@@ -44,7 +44,7 @@ var meixSettings =
     'divaInstance': divaData,
     'skipXMLValidator': true,
     'meiToIgnore': ['system'],
-    'initializeWithFiles': ['mei_data/bach.mei', 'mei_data/krebs.mei']
+    'initializeWithFiles': ['mei_data/bach.mei', 'mei_data/krebs.mei', 'mei_data/holst1-1.mei']
 };
 var plugins = ["js/meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
 
@@ -150,24 +150,7 @@ $(document).ready(function() {
             activeWAP.startAudioPlayback();
         });
 
-        meiEditor.events.subscribe("ActivePageChanged", function(filename) {
-            turnOffHighlights();
-
-            var pageData = meiEditor.getPageData(filename);
-            var waveforms = pageData.el.querySelectorAll(".waveform");
-            for (var wIdx = 0; wIdx < waveforms.length; wIdx++)
-                waveformAudioPlayers[waveforms[wIdx].getAttribute('id')].resizeComponents();
-
-            if (pageData.parsed.querySelector("graphic"))
-            {
-                console.log("would switch Diva");
-            }
-            else 
-            {
-                console.log("would switch Vida", vidaData);
-                if (vidaData) vidaData.changeMusic(meiEditor.getPageData(filename).raw);
-            }
-        });
+        meiEditor.events.subscribe("ActivePageChanged", regenerateTimePoints);
 
         //we need the facs points to start and this will update zones
         regenerateTimePoints();
@@ -182,18 +165,28 @@ var meiUpdateStartFunction;
 var meiUpdateEndFunction;
 var updateHighlights;
 var endHandler;
-function regenerateTimePoints()
+function regenerateTimePoints(filename)
 {    
-    var parsed = meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed;
-    if (meiEditor.isActivePageLinked())
+    turnOffHighlights();
+
+    filename = filename || meiEditor.getActivePageTitle();
+    var pageData = meiEditor.getPageData(filename);
+    var parsed = pageData.parsed;
+    var waveforms = pageData.el.querySelectorAll(".waveform");
+    for (var wIdx = 0; wIdx < waveforms.length; wIdx++)
+        waveformAudioPlayers[waveforms[wIdx].getAttribute('id')].resizeComponents();
+
+    if (parsed.querySelector("facsimile"))
     {
-        switchToRenderer("diva", parsed);
+        console.log("would switch Diva");
+        if (!divaData) switchToRenderer("diva", parsed);
         meiEditor.events.subscribe('ZonesWereUpdated', divaUpdate);
         meiEditor.events.publish('UpdateZones');
     }
-    else
+    else 
     {
-        switchToRenderer("vida", parsed);
+        if (!vidaData) switchToRenderer("vida", parsed);
+        vidaData.changeMusic(meiEditor.getPageData(filename).raw);
         vidaUpdate(parsed);
     }
 }
@@ -214,6 +207,7 @@ var switchToRenderer = function(which, newFile)
     if (which === "diva" && !divaData)
     {
         if(vidaData) vidaData.destroy();
+        $("#renderer").html("");
         $('#renderer').diva(divaSettings);
         vidaData = null;
         divaData = $('#renderer').data('diva');
@@ -239,7 +233,7 @@ var switchToRenderer = function(which, newFile)
     if (which === "vida" && !vidaData)
     {
         if (divaData) divaData.destroy();
-        vidaSettings.fileOnLoad = newFile.children[0].outerHTML;
+        $("#renderer").html("");
         $('#renderer').vida(vidaSettings);
         divaData = null;
         vidaData = $('#renderer').data('vida');
@@ -372,7 +366,7 @@ var divaUpdate = function(facsDict)
 
 var vidaUpdate = function(parsed)
 {
-    if (!activeWAP) return;
+    if (!activeWAP || !activeWAP.getFilename()) return;
     facsPoints = {};
     var facsPointsStaging = {};
 
