@@ -52,7 +52,7 @@ var vidaSettings =
 {
     horizontallyOriented: 0,
     fileOnLoadIsURL: false,
-    workerLocation: "/js/vida.js/verovioWorker.js"
+    workerLocation: "js/vida.js/verovioWorker.js"
 };
 
 $(document).ready(function() {
@@ -409,7 +409,7 @@ function turnOffHighlights()
     window.clearInterval(highlightInterval);
     intervalIsRunning = false;
     nextFacsTime = 0;
-    
+
     for (var playerID in waveformAudioPlayers)
         waveformAudioPlayers[playerID].pauseAudioPlayback(true);
 }

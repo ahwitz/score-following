@@ -142,6 +142,7 @@ function hasOwnProperty(obj, prop) {
             pCanvasContext.fillStyle = 'rgba(0, 0, 0, 0)';
             pCanvasContext.fillRect(0,0,canvasWidth,canvasHeight);
             pCanvasContext.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            $(pCanvas).offset({'top': $("#" + wCanvas.getAttribute("id")).offset().top});
 
             intervalRefreshSpeed = audioBuffer.duration * 1000 / canvasWidth;
         }
@@ -269,7 +270,6 @@ function hasOwnProperty(obj, prop) {
             renderPlaybackCanvas();
 
             pCanvas.style.left = wCanvas.style.left = 0;
-            $(pCanvas).offset({'top': wCanvas.getBoundingClientRect().top});
             initListeners();
         };
 
