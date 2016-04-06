@@ -44,7 +44,7 @@ var meixSettings =
     'divaInstance': divaData,
     'skipXMLValidator': true,
     'meiToIgnore': ['system'],
-    'initializeWithFiles': ['mei_data/bach.mei', 'mei_data/krebs.mei', 'mei_data/holst1-1.mei']
+    'initializeWithFiles': ['mei_data/bach.mei', 'mei_data/krebs.mei', 'mei_data/brahms.mei']
 };
 var plugins = ["js/meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
 
@@ -82,16 +82,6 @@ $(document).ready(function() {
 
                 waveformAudioPlayers[activeWaveform.getAttribute('id')] = $(activeWaveform).data('wap');
             } 
-
-            avIdx++;
-            element.innerHTML += "<div class='waveform' data-index='" + avIdx + "'></div>";
-            activeWaveform = element.querySelector('.waveform[data-index="' + avIdx + '"]');
-            $(activeWaveform).wap({
-                'editMode': editable,
-                'title': 'Add your own file'
-            });
-            
-            waveformAudioPlayers[activeWaveform.getAttribute('id')] = $(activeWaveform).data('wap');
         }
 
         if (editable)
@@ -150,24 +140,29 @@ $(document).ready(function() {
             activeWAP.startAudioPlayback();
         });
 
-        meiEditor.events.subscribe("ActivePageChanged", regenerateTimePoints);
+        meiEditor.events.subscribe("ActivePageChanged", function()
+        {
+            regenerateTimePoints();
+        });
 
         //we need the facs points to start and this will update zones
         regenerateTimePoints();
 
-        mei.Events.subscribe("JumpedToTime", updateHighlights);
-        mei.Events.subscribe("JumpedToTime", updateActiveWAP);
+        diva.Events.subscribe("ViewerDidLoad", function(){ meiEditor.events.publish("UpdateZones"); });
     });
 });
 
 // Triggers a call to publishZones and runs onUpdate on the results
 var meiUpdateStartFunction;
 var meiUpdateEndFunction;
-var updateHighlights;
+var updateHighlights, rendererUpdate;
 var endHandler;
+var highlightSubscribeHandle;
+var divaSubscribeHandle;
 function regenerateTimePoints(filename)
-{    
-    turnOffHighlights();
+{
+    if (highlightSubscribeHandle) mei.Events.unsubscribe(highlightSubscribeHandle);
+    updateActiveWAP();
 
     filename = filename || meiEditor.getActivePageTitle();
     var pageData = meiEditor.getPageData(filename);
@@ -178,28 +173,34 @@ function regenerateTimePoints(filename)
 
     if (parsed.querySelector("facsimile"))
     {
-        console.log("would switch Diva");
         if (!divaData) switchToRenderer("diva", parsed);
-        meiEditor.events.subscribe('ZonesWereUpdated', divaUpdate);
+        meiEditor.setDivaInstance(divaData);
+        rendererUpdate = divaUpdate;
+        divaSubscribeHandle = meiEditor.events.subscribe('ZonesWereUpdated', rendererUpdate);
         meiEditor.events.publish('UpdateZones');
     }
     else 
     {
         if (!vidaData) switchToRenderer("vida", parsed);
         vidaData.changeMusic(meiEditor.getPageData(filename).raw);
-        vidaUpdate(parsed);
+        rendererUpdate = vidaUpdate;
     }
+
+    highlightSubscribeHandle = mei.Events.subscribe("JumpedToTime", updateHighlights);
 }
 
 var updateActiveWAP = function(e, canvas)
 {
     turnOffHighlights();
 
-    var target = canvas ? canvas : e.target;
-    var filename = $(target).closest(".mei-editor-pane").attr('data-originalname');
-    activeWAP = waveformAudioPlayers[$(target).closest(".waveform").attr('id')];
-
-    vidaUpdate(meiEditor.getPageData(filename).parsed);
+    if (canvas || e)
+    {
+        var target = canvas ? canvas : e.target;
+        var filename = $(target).closest(".mei-editor-pane").attr('data-originalname');
+        activeWAP = waveformAudioPlayers[$(target).closest(".waveform").attr('id')];
+        rendererUpdate(meiEditor.getPageData(filename).parsed);
+    }
+    else activeWAP = null;
 };
 
 var switchToRenderer = function(which, newFile)
@@ -291,77 +292,41 @@ var insertNewTimepoint = function(parsed, targetUUID)
     rewriteAce(meiEditor.getPageData(meiEditor.getActivePageTitle()));
 };
 
-var divaUpdate = function(facsDict)
+var divaUpdate = function(parsed)
 {
+    if (!activeWAP || !activeWAP.getFilename()) return;
     facsPoints = {};
+    var facsPointsStaging = {};
 
-    var pageTitles = meiEditor.getLinkedPageTitles();
+    var pageTitles = meiEditor.getPageTitles();
     var divaPages = Object.keys(pageTitles);
     var idx = pageTitles.length;
 
-    //create facsPoints, a dict of {timestamp string: [highlightID1, highlightID2...]}
-    while(idx--)
+    if (!parsed.querySelector) parsed = meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed;
+
+    var avFile = parsed.querySelector("avFile[target='" + activeWAP.getFilename() + "']").getAttribute("id");
+    var whenPoints = parsed.querySelectorAll("timeline[avref='" + avFile + "'] when");
+    var whenIdx = whenPoints.length;
+
+    while(whenIdx--)
     {
-        var curTitle = pageTitles[divaIdx];
-        var parsed = meiEditor.getPageData(curTitle).parsed;
-
-        var whenPoints = parsed.querySelectorAll("when");
-        var whenIdx = whenPoints.length;
-
-        while(whenIdx--)
-        {
-            var thisWhen = whenPoints[whenIdx];
-            var whenID = thisWhen.getAttribute("xml:id");
-            var whenAbs = thisWhen.getAttribute('absolute');
-            facsPoints[whenAbs] = [];
-
-            var notes = parsed.querySelectorAll("[*|when='" + whenID + "']");
-            var noteIdx = notes.length;
-
-            while(noteIdx--)
-            {
-                facsPoints[whenAbs].push(notes[noteIdx].getAttribute('facs'));
-            }
-
-        }
+        var thisWhen = whenPoints[whenIdx];
+        if (thisWhen.getAttribute("data"))
+            facsPointsStaging[thisWhen.getAttribute('absolute')] = thisWhen.getAttribute("data");
+            // facsPoints[thisWhen.getAttribute('absolute')] = "*[data-highlight-id='" + thisWhen.getAttribute("data") + "']";
     }
 
-    //create facsIntToString, a dict of {facsTimeInt: facsTimeString} where facsTimeString is a key in facsPoints
-    facsIntToString = {};
-
-    var facsIntToStringPrep = {};
-    var facsStrings = Object.keys(facsPoints);
-    var facsInts = [];
-    var curString, curFloat;
-    for (idx = 0; idx < facsStrings.length; idx++)
-    {
-        curString = facsStrings[idx];
-        curFloat = stringTimeToFloat(curString);
-        facsIntToStringPrep[curFloat] = curString;
-        facsInts.push(curFloat);
-    }
-
+    facsInts = Object.keys(facsPointsStaging);
     facsInts.sort(function(a, b)
     {
         return parseFloat(a) - parseFloat(b);
     });
-
-    for (idx = 0; idx < facsInts.length; idx++)
-    {
-        var compFloat = facsInts[idx];
-        for (curFloat in facsIntToStringPrep)
-        {
-            curString = facsIntToStringPrep[curFloat];
-            if (compFloat == curFloat && facsTimes.indexOf(compFloat) == -1)
-            {
-                facsTimes.push(compFloat);
-                facsIntToString[compFloat] = curString;
-                break;
-            }
-        }
-    }
-
-    meiEditor.events.unsubscribe('ZonesWereUpdated', divaUpdate);
+    
+    for (var idx = 0; idx < facsInts.length; idx++)
+        facsPoints[parseFloat(facsInts[idx])] = facsPointsStaging[facsInts[idx]];
+    facsTimes = Object.keys(facsPoints);
+    
+    if (divaSubscribeHandle) meiEditor.events.unsubscribe(divaSubscribeHandle);
 };
 
 var vidaUpdate = function(parsed)
@@ -371,7 +336,6 @@ var vidaUpdate = function(parsed)
     var facsPointsStaging = {};
 
     // Get a list of <when> timepoints and order them
-    var parsed = meiEditor.getPageData(meiEditor.getActivePageTitle()).parsed;
     var avFile = parsed.querySelector("avFile[target='" + activeWAP.getFilename() + "']").getAttribute("id");
     var whenPoints = parsed.querySelectorAll("timeline[avref='" + avFile + "'] when");
     var whenIdx = whenPoints.length;
@@ -404,27 +368,50 @@ function turnOffHighlights()
     intervalIsRunning = false;
     nextFacsTime = 0;
 
+    console.log("Pausing all?");
     for (var playerID in waveformAudioPlayers)
         waveformAudioPlayers[playerID].pauseAudioPlayback(true);
 }
 
-function updateDivaHighlights(overrideTime)
+function updateDivaHighlights(overrideTime, wap)
 {
-    /**
-     * TODO: reimplement
-    var currentFacsTime = facsTimes[nextFacsTimeIdx];
-    var string = facsIntToString[currentFacsTime];
-    meiEditor.deselectAllHighlights();
-
-    for (var highlight in facsPoints[string])
+    if (wap && activeWAP) 
     {
-        highlightID = facsPoints[string][highlight];
-        meiEditor.selectHighlight("#" + highlightID);
+        activeWAP.pauseAudioPlayback(true);
+        activeWAP = waveformAudioPlayers[wap.getAttribute('id')];
+    }
+    if (!facsTimes.length || !activeWAP) updateActiveWAP(null, wap);
+    var activeAudioTime = (parseFloat(overrideTime) || activeWAP.currentTimeToPlaybackTime());
+    // if we haven't passed the next update, forget this and just wait until the next iteration
+    if ((overrideTime === undefined) && (activeAudioTime < nextFacsTime)) return;
+
+    // find the next greatest time and store it
+    var facsIdx = 0;
+    for (facsIdx; facsIdx < facsTimes.length; facsIdx++)
+        if (parseFloat(facsTimes[facsIdx]) > activeAudioTime)
+        {
+            nextFacsTime = facsTimes[facsIdx];
+            break;
+        }
+
+    // Nothing left.
+    if(facsIdx == facsTimes.length)
+    {
+        nextFacsTime === Infinity;
+        return;
     }
 
-    nextFacsTimeIdx++;
-    var nextFacsTime = facsTimes[nextFacsTimeIdx];
-    */
+    // track which highlights need to be added
+    var activeFacsTime = facsTimes[facsIdx - 1];
+    if (activeFacsTime) activeFacsTime = activeFacsTime.toString();
+    if (facsPoints[activeFacsTime])
+    {
+        var activeSelector = facsPoints[activeFacsTime];
+        $(".mei-highlight").css('background', 'rgba(255, 0, 0, 0.2)');
+        divaData.gotoHighlight(activeSelector);
+        $(".1-diva-selected-highlight").css('background', 'rgba(0, 255, 0, 0.2)');
+    }
+    else prevHighlightSelector = true;
 
     if (!intervalIsRunning)
     {
@@ -433,8 +420,14 @@ function updateDivaHighlights(overrideTime)
     }
 }
 
-function updateVidaHighlights(overrideTime)
+function updateVidaHighlights(overrideTime, wap)
 {
+    if (wap && activeWAP) 
+    {
+        activeWAP.pauseAudioPlayback(true);
+        activeWAP = waveformAudioPlayers[wap.getAttribute('id')];
+    }
+    if (!facsTimes.length || !activeWAP) updateActiveWAP(null, wap);
     var activeAudioTime = (parseFloat(overrideTime) || activeWAP.currentTimeToPlaybackTime());
     // if we haven't passed the next update, forget this and just wait until the next iteration
     if ((overrideTime === undefined) && (activeAudioTime < nextFacsTime)) return;
