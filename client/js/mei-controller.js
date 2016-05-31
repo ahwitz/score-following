@@ -44,7 +44,7 @@ var meixSettings =
     'divaInstance': divaData,
     'skipXMLValidator': true,
     'meiToIgnore': ['system'],
-    'initializeWithFiles': ['mei_data/bach.mei', 'mei_data/krebs.mei', 'mei_data/brahms.mei']
+    'initializeWithFiles': ['mei_data/bach.mei', 'mei_data/krebs-alt.mei', 'mei_data/czerny.mei']
 };
 var plugins = ["js/meix.js/js/local/plugins/meiEditorZoneDisplay.js"];
 
@@ -336,7 +336,8 @@ var vidaUpdate = function(parsed)
     var facsPointsStaging = {};
 
     // Get a list of <when> timepoints and order them
-    var avFile = parsed.querySelector("avFile[target='" + activeWAP.getFilename() + "']").getAttribute("id");
+    var avFileEl = parsed.querySelector("avFile[target='" + activeWAP.getFilename() + "']");
+    var avFile = avFileEl.getAttribute("xml:id") || avFileEl.getAttribute("id");
     var whenPoints = parsed.querySelectorAll("timeline[avref='" + avFile + "'] when");
     var whenIdx = whenPoints.length;
 
@@ -346,6 +347,8 @@ var vidaUpdate = function(parsed)
         var whenID = thisWhen.getAttribute("xml:id");
         var whenAbs = thisWhen.getAttribute('absolute');
         var floatWhen = (whenAbs.indexOf(":") > 0 ? stringTimeToFloat(whenAbs) : parseFloat(whenAbs));
+        if (floatWhen % 1 === 0)
+            floatWhen += .001; // JavaScript is stupid and this helps guarantee the sort below works correctly
         if (parsed.querySelector("[*|id='" + thisWhen.getAttribute('data') + "']"))
             facsPointsStaging[floatWhen] = "#" + thisWhen.getAttribute('data');
     }
@@ -368,7 +371,6 @@ function turnOffHighlights()
     intervalIsRunning = false;
     nextFacsTime = 0;
 
-    console.log("Pausing all?");
     for (var playerID in waveformAudioPlayers)
         waveformAudioPlayers[playerID].pauseAudioPlayback(true);
 }
@@ -440,6 +442,7 @@ function updateVidaHighlights(overrideTime, wap)
             nextFacsTime = facsTimes[facsIdx];
             break;
         }
+
     // Nothing left.
     if(facsIdx == facsTimes.length)
     {
